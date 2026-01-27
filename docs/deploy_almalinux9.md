@@ -168,29 +168,20 @@ vim .env
 
 alembic upgrade head
 
-### 3.4 数据目录与模型准备
-由于 `data` 目录被 Git 忽略，需要手动创建目录结构并上传模型文件。
+### 3.4 数据目录准备
+由于 `data/captures` 和 `data/faces` 目录被 Git 忽略，需要手动创建这些目录。模型文件 (`data/models`) 已包含在 Git 仓库中，无需手动上传。
 
 ```bash
 # 进入后端目录
 cd /opt/video-warning/backend
 
-# 创建数据目录
+# 创建数据存储目录
 mkdir -p data/captures
 mkdir -p data/faces
-mkdir -p data/models
 
 # 设置目录权限 (确保运行用户有写权限)
 # 假设运行用户为 root (如 Systemd 配置所示)，或者是 deploy_user
 sudo chmod -R 755 data
-```
-
-**关于模型文件**：
-项目需要 YOLO 模型文件。如果服务器可以访问外网，首次运行时可能会自动下载标准模型。建议手动上传本地的 `backend/data/models` 下的模型文件到服务器的 `/opt/video-warning/backend/data/models/` 目录中。
-
-```bash
-# 示例：从本地上传 (在本地机器执行)
-# scp -r backend/data/models/* user@server_ip:/opt/video-warning/backend/data/models/
 ```
 ```
 

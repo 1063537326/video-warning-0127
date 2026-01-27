@@ -69,7 +69,8 @@ frontend/dist-ssr/
 frontend/coverage/
 
 # Backend specific
-backend/data/
+backend/data/captures/
+backend/data/faces/
 backend/logs/
 backend/static/
 *.log
@@ -78,7 +79,7 @@ celerybeat-schedule
 celerybeat.pid
 
 # Project specific
-data/
+/data/
 captures/
 faces/
 logs/
