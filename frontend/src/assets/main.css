@@ -1,0 +1,331 @@
+/* 导入 Inter 字体 - 必须在 @tailwind 之前 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 基础样式 */
+@layer base {
+  * {
+    @apply border-primary-200 dark:border-primary-700;
+  }
+
+  body {
+    @apply bg-primary-50 text-primary-900 antialiased;
+    @apply dark:bg-primary-900 dark:text-primary-100;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* 滚动条样式 */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-primary-100 rounded-full dark:bg-primary-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary-300 rounded-full hover:bg-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500;
+  }
+}
+
+/* 组件样式 */
+@layer components {
+  /* 按钮基础样式 */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply dark:focus:ring-offset-primary-900;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-700 text-white hover:bg-primary-800 focus:ring-primary-500;
+    @apply dark:bg-primary-600 dark:hover:bg-primary-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-primary-100 text-primary-700 hover:bg-primary-200 focus:ring-primary-500;
+    @apply dark:bg-primary-800 dark:text-primary-200 dark:hover:bg-primary-700;
+  }
+
+  .btn-accent {
+    @apply btn bg-accent-600 text-white hover:bg-accent-700 focus:ring-accent-500;
+    @apply dark:bg-accent-500 dark:hover:bg-accent-400;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger-600 text-white hover:bg-danger-700 focus:ring-danger-500;
+    @apply dark:bg-danger-500 dark:hover:bg-danger-400;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-primary-600 hover:bg-primary-100 focus:ring-primary-500;
+    @apply dark:text-primary-300 dark:hover:bg-primary-800;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  /* 输入框样式 */
+  .input {
+    @apply w-full px-3 py-2 text-sm bg-white border border-primary-200 rounded-lg transition-colors duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 placeholder:text-primary-400;
+    @apply dark:bg-primary-800 dark:border-primary-600 dark:text-primary-100 dark:placeholder:text-primary-500 dark:focus:border-primary-400;
+  }
+
+  .input-error {
+    @apply border-danger-500 focus:border-danger-500 focus:ring-danger-500/20;
+  }
+
+  /* 卡片样式 */
+  .card {
+    @apply bg-white rounded-xl border border-primary-100 shadow-sm;
+    @apply dark:bg-primary-800 dark:border-primary-700;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-primary-100;
+    @apply dark:border-primary-700;
+  }
+
+  .card-body {
+    @apply p-6;
+  }
+
+  .card-footer {
+    @apply px-6 py-4 border-t border-primary-100 bg-primary-50/50;
+    @apply dark:border-primary-700 dark:bg-primary-900/50;
+  }
+
+  /* 徽章样式 */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full;
+  }
+
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-700;
+    @apply dark:bg-primary-700 dark:text-primary-200;
+  }
+
+  .badge-success {
+    @apply badge bg-success-100 text-success-700;
+    @apply dark:bg-success-900/50 dark:text-success-400;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning-100 text-warning-700;
+    @apply dark:bg-warning-900/50 dark:text-warning-400;
+  }
+
+  .badge-danger {
+    @apply badge bg-danger-100 text-danger-700;
+    @apply dark:bg-danger-900/50 dark:text-danger-400;
+  }
+
+  .badge-accent {
+    @apply badge bg-accent-100 text-accent-700;
+    @apply dark:bg-accent-900/50 dark:text-accent-400;
+  }
+
+  /* 表格样式 */
+  .table {
+    @apply w-full text-sm text-left;
+  }
+
+  .table th {
+    @apply px-4 py-3 font-medium text-primary-500 bg-primary-50 border-b border-primary-200;
+    @apply dark:text-primary-400 dark:bg-primary-800/50 dark:border-primary-700;
+  }
+
+  .table td {
+    @apply px-4 py-3 border-b border-primary-100;
+    @apply dark:border-primary-700;
+  }
+
+  .table tr:hover td {
+    @apply bg-primary-50/50;
+    @apply dark:bg-primary-800/50;
+  }
+
+  /* 侧边栏菜单项 */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-primary-600 rounded-lg transition-colors duration-200 hover:bg-primary-100 hover:text-primary-900;
+    @apply dark:text-primary-300 dark:hover:bg-primary-700 dark:hover:text-primary-100;
+  }
+
+  .nav-item.active {
+    @apply bg-primary-700 text-white hover:bg-primary-800;
+    @apply dark:bg-accent-600 dark:hover:bg-accent-500;
+  }
+
+  /* 统计卡片 */
+  .stat-card {
+    @apply card p-5 flex items-center gap-4;
+  }
+
+  .stat-icon {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center;
+  }
+
+  .stat-value {
+    @apply text-2xl font-bold text-primary-900;
+    @apply dark:text-primary-100;
+  }
+
+  .stat-label {
+    @apply text-sm text-primary-500;
+    @apply dark:text-primary-400;
+  }
+}
+
+/* 工具类 */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 主题切换动画 */
+  .theme-transition {
+    @apply transition-colors duration-200;
+  }
+
+  /* 深色模式下的阴影 */
+  .dark .shadow-sm {
+    --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  }
+
+  .dark .shadow {
+    --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  }
+
+  .dark .shadow-md {
+    --tw-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  }
+
+  .dark .shadow-lg {
+    --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  }
+}
+
+/* 深色模式下的全局覆盖 */
+.dark {
+  color-scheme: dark;
+}
+
+/* 深色模式下的选择文本颜色 */
+.dark ::selection {
+  @apply bg-accent-600/40 text-white;
+}
+
+/* 深色模式下的焦点环偏移色 */
+.dark *:focus-visible {
+  --tw-ring-offset-color: theme('colors.primary.900');
+}
+
+/* ========== 深色模式通用文字颜色修复 ========== */
+
+/* 标题文字 */
+.dark .text-primary-900 {
+  @apply text-primary-100;
+}
+
+/* 正文文字 */
+.dark .text-primary-800 {
+  @apply text-primary-200;
+}
+
+.dark .text-primary-700 {
+  @apply text-primary-300;
+}
+
+/* 次要文字 */
+.dark .text-primary-600 {
+  @apply text-primary-400;
+}
+
+.dark .text-primary-500 {
+  color: #829ab1; /* primary-400 */
+}
+
+/* 深色模式下边框颜色 */
+.dark .border-primary-100 {
+  @apply border-primary-700/60;
+}
+
+.dark .border-primary-200 {
+  @apply border-primary-700;
+}
+
+/* 深色模式下背景颜色 */
+.dark .bg-white {
+  @apply bg-primary-800;
+}
+
+.dark .bg-primary-50 {
+  @apply bg-primary-900;
+}
+
+.dark .bg-primary-100 {
+  @apply bg-primary-700/50;
+}
+
+.dark .bg-primary-200 {
+  @apply bg-primary-700;
+}
+
+/* 深色模式下 hover 背景 */
+.dark .hover\:bg-primary-50:hover {
+  @apply bg-primary-700/50;
+}
+
+.dark .hover\:bg-primary-100:hover {
+  @apply bg-primary-700;
+}
+
+/* 深色模式下各种状态背景 */
+.dark .bg-danger-50 {
+  @apply bg-danger-900/30;
+}
+
+.dark .bg-warning-50 {
+  @apply bg-warning-900/30;
+}
+
+.dark .bg-success-50 {
+  @apply bg-success-900/30;
+}
+
+.dark .bg-accent-50 {
+  @apply bg-accent-900/30;
+}
+
+/* 深色模式下状态文字颜色 */
+.dark .text-danger-700 {
+  @apply text-danger-400;
+}
+
+.dark .text-warning-700 {
+  @apply text-warning-400;
+}
+
+.dark .text-success-700 {
+  @apply text-success-400;
+}
+
+.dark .text-accent-700 {
+  @apply text-accent-400;
+}
