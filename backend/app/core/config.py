@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     # CORS 配置
     CORS_ORIGINS: list = ["*"]
     
+    # ROI 区域配置 (x_min, y_min, x_max, y_max) 0.0-1.0
+    # 左上角为(0,0), 右下角为(1,1)
+    # 默认值参考：顶部裁掉 25% (避开远景走廊), 左右保留 15% 边距 (类似黄框宽度)
+    DETECTION_ROI: list = [0.15, 0.25, 0.85, 0.95]
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=True,

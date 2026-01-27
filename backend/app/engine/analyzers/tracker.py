@@ -152,8 +152,36 @@ class YoloTracker:
                 person.update_body(annotated_frame, (x1, y1, w, h))
                 self.disappeared_count[track_id] = 0
                 
-        # 2. 人脸检测 (仅当有人在场时)
+        # 2. 筛选在 ROI 区域内的人
+        roi_person_ids = []
         if len(current_ids) > 0:
+            roi_config = settings.DETECTION_ROI
+            # roi_config: [x_min, y_min, x_max, y_max] 比例
+            if roi_config and len(roi_config) == 4:
+                rmin_x, rmin_y, rmax_x, rmax_y = roi_config
+                # 转换绝对坐标
+                roi_x1 = int(rmin_x * w_img)
+                roi_y1 = int(rmin_y * h_img)
+                roi_x2 = int(rmax_x * w_img)
+                roi_y2 = int(rmax_y * h_img)
+                
+                # 绘制 ROI 框 (调试用，可选)
+                # cv2.rectangle(annotated_frame, (roi_x1, roi_y1), (roi_x2, roi_y2), (255, 255, 0), 2)
+                
+                for track_id, box in zip(track_ids, boxes):
+                    bx1, by1, bx2, by2 = map(int, box)
+                    # 使用身体中心点判断位置 (bx1+bx2)/2, (by1+by2)/2
+                    center_x = (bx1 + bx2) / 2
+                    center_y = (by1 + by2) / 2
+                    
+                    if (roi_x1 <= center_x <= roi_x2) and (roi_y1 <= center_y <= roi_y2):
+                        roi_person_ids.append(track_id)
+            else:
+                #如果没有配置 roi, 则所有人都在 roi
+                roi_person_ids = list(current_ids)
+
+        # 3. 人脸检测 (仅当 ROI 区域有人在场时)
+        if len(roi_person_ids) > 0:
             results_face = self.model_face(frame, conf=self.conf_face, verbose=False)
             
             for r in results_face:
@@ -166,7 +194,8 @@ class YoloTracker:
                     face_center = (fx1 + fw/2, fy1 + fh/2)
                     best_match_id = self._match_face_to_body(face_center, boxes, track_ids)
                     
-                    if best_match_id in self.tracked_persons:
+                    # 只处理在 ROI 内的人
+                    if best_match_id in roi_person_ids:
                         person = self.tracked_persons[best_match_id]
                         person.update_face(frame, (fx1, fy1, fw, fh), conf)
                         
