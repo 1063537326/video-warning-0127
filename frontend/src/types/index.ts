@@ -80,6 +80,7 @@ export interface Camera {
   resolution?: string
   fps?: number
   status: CameraStatus
+  is_enabled: boolean
   is_analyzing: boolean
   config?: Record<string, any>
   last_seen_at?: string

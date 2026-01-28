@@ -7,6 +7,7 @@
 ## 1. 前期准备 (Environment Preparation)
 
 ### 1.1 系统更新与基础工具安装
+
 首先更新系统并安装必要的开发工具：
 
 ```bash
@@ -201,7 +202,8 @@ vim .env.production
 # 内容示例:
 # VITE_API_BASE_URL=/api/v1
 # VITE_WS_URL=wss://your-domain.com/ws  (如果配置了 SSL)
-# 或 VITE_WS_URL=ws://your-ip:8000/ws
+# 或 VITE_WS_URL=ws://your-ip:80/ws (通过 Nginx 转发)
+# 注意：后端端口已改为 8001，若直连后端请使用 8001
 
 # 构建项目
 npm run build
@@ -211,6 +213,8 @@ npm run build
 ---
 
 ## 5. Nginx 配置 (Reverse Proxy)
+
+> **⚠️ 注意**：由于服务器上可能运行着 CompreFace (默认占用 8000 端口)，我们将本项目的后端服务配置在 **8001** 端口，并通过 Nginx (80) 进行转发。
 
 ### 5.1 安装 Nginx
 ```bash
@@ -233,9 +237,9 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # 后端 API 代理
+    # 后端 API 代理 (转发到 8001)
     location /api {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -244,17 +248,17 @@ server {
 
     # API 文档代理 (Swagger/Redoc)
     location /docs {
-        proxy_pass http://127.0.0.1:8000/docs;
+        proxy_pass http://127.0.0.1:8001/docs;
         proxy_set_header Host $host;
     }
     location /openapi.json {
-        proxy_pass http://127.0.0.1:8000/openapi.json;
+        proxy_pass http://127.0.0.1:8001/openapi.json;
         proxy_set_header Host $host;
     }
 
     # WebSocket 代理
     location /ws {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -304,14 +308,14 @@ Description=Video Warning Backend Service
 After=network.target postgresql-15.service
 
 [Service]
-# 修改为实际的用户和组
+# 修改为实际的用户和组 (8001 是非特权端口，建议使用非 root 用户，如 deploy_user)
 User=root
 Group=root
 WorkingDirectory=/opt/video-warning/backend
 Environment="PATH=/opt/video-warning/backend/venv/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin"
 
-# 启动命令 (使用 uvicorn)
-ExecStart=/opt/video-warning/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 4
+# 启动命令 (使用 uvicorn，端口修改为 8001 以避开 CompreFace)
+ExecStart=/opt/video-warning/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 4
 
 # 自动重启
 Restart=always

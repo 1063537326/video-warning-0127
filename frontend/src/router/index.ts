@@ -5,7 +5,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory((import.meta as any).env.BASE_URL),
   routes: [
     // 登录页
     {
@@ -108,12 +108,12 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
-  
+
   // 设置页面标题
-  document.title = to.meta.title 
-    ? `${to.meta.title} - 视频监控报警系统` 
+  document.title = to.meta.title
+    ? `${to.meta.title} - 视频监控报警系统`
     : '视频监控报警系统'
 
   // 检查是否需要登录

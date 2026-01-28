@@ -219,10 +219,11 @@ async def websocket_endpoint(
     
     if token:
         try:
-            from app.core.security import decode_token
-            payload = decode_token(token)
-            user_id = payload.get("sub")
-            username = payload.get("username")
+            from app.core.security import verify_token
+            payload = verify_token(token)
+            if payload:
+                user_id = payload.get("sub")
+                username = payload.get("username")
         except Exception as e:
             logger.warning(f"WebSocket token 验证失败: {e}")
     
@@ -280,4 +281,4 @@ if __name__ == "__main__":
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         
-    uvicorn.run("main:app", host="0.0.0.0", port=329, reload=settings.DEBUG)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=settings.DEBUG)

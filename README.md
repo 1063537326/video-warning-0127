@@ -115,8 +115,8 @@ npm run dev
 ## API 文档
 
 启动后端服务后，访问：
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:8001/docs
+- ReDoc: http://localhost:8001/redoc
 
 ## 开发计划
 

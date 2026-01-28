@@ -175,16 +175,7 @@ const getConfigDescription = (key: string): string => {
   return descriptions[key] || ''
 }
 
-/**
- * 获取配置项输入类型
- */
-const getInputType = (valueType: string): string => {
-  switch (valueType) {
-    case 'number': return 'number'
-    case 'boolean': return 'checkbox'
-    default: return 'text'
-  }
-}
+
 
 // ============ 生命周期 ============
 

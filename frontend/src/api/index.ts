@@ -25,7 +25,7 @@ import type {
 
 // 创建 axios 实例
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:329/api/v1',
+  baseURL: (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json'
@@ -452,7 +452,7 @@ export const healthApi = {
     engine_status: string
     websocket_clients: number
   }> => axios.get(
-    (import.meta.env.VITE_API_BASE_URL || 'http://localhost:329') + '/health'
+    (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8001'
   ).then(res => res.data),
 }
 

@@ -3,10 +3,8 @@
  * 登录页面
  */
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const route = useRoute()
 const authStore = useAuthStore()
 
 const username = ref('')

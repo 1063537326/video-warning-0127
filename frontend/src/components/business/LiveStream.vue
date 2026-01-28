@@ -31,7 +31,7 @@ const retryCount = ref(0)
 const streamUrl = computed(() => {
   const token = localStorage.getItem('access_token')
   // Assume API base URL logic is similar to api/index.ts
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:329/api/v1'
+  const baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1'
   // MJPEG stream endpoint
   return `${baseUrl}/stream/${props.cameraId}?token=${token}&_t=${Date.now() + retryCount.value}`
 })

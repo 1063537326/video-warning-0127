@@ -82,5 +82,5 @@ celerybeat.pid
 /data/
 captures/
 faces/
-logs/
+/logs/
 todo.md.bak

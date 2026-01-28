@@ -4,7 +4,7 @@
  * 
  * 展示实时报警通知列表，支持滑入动画、声音控制等功能。
  */
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useAlertStore } from '@/stores/alert'
 import AlertCard from './AlertCard.vue'
 

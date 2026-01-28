@@ -5,7 +5,7 @@
  * 包含侧边栏导航、顶部栏、主题切换功能和实时报警通知。
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAlertStore } from '@/stores/alert'
 import { useTheme } from '@/composables/useTheme'
@@ -14,7 +14,7 @@ import { engineApi } from '@/api'
 import NotificationFeed from '@/components/business/NotificationFeed.vue'
 
 // 主题
-const { isDark, themeMode, toggleTheme, cycleTheme } = useTheme()
+const { themeMode, cycleTheme } = useTheme()
 
 // 报警通知
 const alertStore = useAlertStore()

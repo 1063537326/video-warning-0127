@@ -306,14 +306,7 @@ const handleSetPrimary = async (face: FaceImage) => {
   }
 }
 
-/**
- * 获取分组名称
- */
-const getGroupName = (groupId?: number) => {
-  if (!groupId) return '-'
-  const group = groups.value.find(g => g.id === groupId)
-  return group?.name || '-'
-}
+
 
 /**
  * 分页范围

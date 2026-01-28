@@ -3,7 +3,7 @@
  * 
  * 提供深色/浅色主题切换功能，支持系统主题跟随和本地持久化。
  */
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 
 /** 主题类型 */
 export type ThemeMode = 'light' | 'dark' | 'system'
@@ -93,10 +93,10 @@ function initTheme(): void {
   if (stored && ['light', 'dark', 'system'].includes(stored)) {
     themeMode.value = stored
   }
-  
+
   // 应用主题
   updateTheme()
-  
+
   // 监听系统主题变化
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
   mediaQuery.addEventListener('change', () => {

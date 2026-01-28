@@ -86,11 +86,10 @@ export function useWebSocket(url?: string, options?: WebSocketOptions) {
    * 并附加 token 用于身份验证。
    */
   function getDefaultWsUrl(): string {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = import.meta.env.VITE_WS_HOST || window.location.host
+    const WS_URL = (import.meta as any).env.VITE_WS_URL || 'ws://localhost:8001/ws'
     const token = localStorage.getItem('access_token')
 
-    let baseUrl = `${protocol}//${host}/ws`
+    let baseUrl = WS_URL
     if (token) {
       baseUrl += `?token=${encodeURIComponent(token)}`
     }
@@ -492,7 +491,7 @@ export function useWebSocket(url?: string, options?: WebSocketOptions) {
  * 
  * 用于在非组件环境中使用 WebSocket。
  */
-export function createGlobalWebSocket(options?: WebSocketOptions) {
+export function createGlobalWebSocket() {
   const ws = ref<WebSocket | null>(null)
   const isConnected = ref(false)
   // ... 类似的实现，但不依赖生命周期钩子

@@ -5,12 +5,11 @@
  * 多路视频流展示、布局切换、全屏模式、实时告警显示。
  */
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { cameraApi, zoneApi, engineApi } from '@/api'
+import { cameraApi, zoneApi } from '@/api'
 import { useWebSocket } from '@/composables/useWebSocket'
-import type { Camera, Zone, WsAlertData, WsCameraStatusData } from '@/types'
+import type { Camera, Zone, WsAlertData } from '@/types'
 import LiveStream from '@/components/business/LiveStream.vue'
-import AlertCard from '@/components/business/AlertCard.vue'
-import { useAlertStore, type AlertNotification } from '@/stores/alert'
+import { type AlertNotification } from '@/stores/alert'
 
 // ============ WebSocket ============
 
@@ -32,7 +31,7 @@ const engineStatus = computed(() => {
   return localEngineStatus.value
 })
 
-const alertStore = useAlertStore()
+
 
 // ============ 数据状态 ============
 
@@ -41,13 +40,7 @@ const cameras = ref<Camera[]>([])
 const zones = ref<Zone[]>([])
 
 // 摄像头实时状态（从引擎获取）
-const cameraStats = ref<Map<number, {
-  status: string
-  fps: number
-  queue_size: number
-  total_frames: number
-  processed_frames: number
-}>>(new Map())
+
 
 // 布局：1, 4, 9, 16 宫格
 const layout = ref<1 | 4 | 9 | 16>(4)
@@ -205,9 +198,7 @@ const toggleFullscreen = async () => {
 /**
  * 监听全屏变化
  */
-const handleFullscreenChange = () => {
-  isFullscreen.value = !!document.fullscreenElement
-}
+
 
 /**
  * 获取状态颜色
@@ -236,31 +227,92 @@ const getStatusText = (status: string) => {
 /**
  * 移除本地告警
  */
-const dismissAlert = (id: number) => {
-    const index = recentAlerts.value.findIndex(a => a.id === id)
-    if (index > -1) {
-        recentAlerts.value.splice(index, 1)
-    }
+/**
+ * 清空告警
+ */
+const clearAlerts = () => {
+  recentAlerts.value = []
+}
+
+/**
+ * 获取摄像头 FPS
+ */
+const getCameraFps = (_id: number) => {
+  return 0
+}
+
+
+/**
+ * 格式化时间
+ */
+const formatTime = (time: Date | string) => {
+  if (!time) return '-'
+  const d = new Date(time)
+  return d.toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+/**
+ * 获取报警类型颜色
+ */
+const getAlertTypeColor = (type: string) => {
+  switch (type) {
+    case 'stranger': return 'bg-danger-500'
+    case 'known': return 'bg-accent-500'
+    case 'blacklist': return 'bg-primary-900'
+    default: return 'bg-gray-500'
+  }
+}
+
+/**
+ * 获取报警类型文本
+ */
+const getAlertTypeText = (type: string) => {
+  switch (type) {
+    case 'stranger': return '陌生人'
+    case 'known': return '已知人员'
+    case 'blacklist': return '黑名单'
+    default: return '未知'
+  }
 }
 
 /**
  * 处理告警消息
  */
 const handleAlertMessage = (data: WsAlertData) => {
-  // Merge logic
-  if (data.track_id) {
-    const existingIndex = recentAlerts.value.findIndex(a => a.track_id === data.track_id)
+  // 转换 WsAlertData 到 AlertNotification
+  // 注意 WsAlertData 是 snake_case, AlertNotification 是 camelCase
+  const alertItem: AlertNotification = {
+    id: data.alert_id || data.id || Date.now(),
+    cameraId: data.camera_id,
+    cameraName: data.camera_name || '未知摄像头',
+    zoneName: data.zone_name,
+    alertType: data.alert_type as 'stranger' | 'known' | 'blacklist',
+    personId: data.person_id,
+    personName: data.person_name || (data.alert_type === 'stranger' ? '陌生人' : '未知'),
+    groupName: data.group_name,
+    thumbnail: data.face_image 
+      ? (data.face_image.startsWith('data:') ? data.face_image : `data:image/jpeg;base64,${data.face_image}`)
+      : '',
+    fullImage: data.full_image
+      ? (data.full_image.startsWith('data:') ? data.full_image : `data:image/jpeg;base64,${data.full_image}`)
+      : undefined,
+    confidence: data.confidence || data.similarity || 0,
+    createdAt: data.timestamp || new Date().toISOString(),
+    trackId: data.track_id,
+    alertLevel: data.alert_level || 'info'
+  }
+
+  // Merge logic based on trackId
+  if (alertItem.trackId) {
+    const existingIndex = recentAlerts.value.findIndex(a => a.trackId === alertItem.trackId)
     if (existingIndex > -1) {
       const existing = recentAlerts.value[existingIndex]
-      // Update
+      // Update existing alert
       recentAlerts.value[existingIndex] = {
         ...existing,
-        timestamp: new Date(),
-        face_image: data.face_image ? `data:image/jpeg;base64,${data.face_image}` : existing.face_image,
-        alert_type: data.alert_type || existing.alert_type,
-        person_name: data.person_name || existing.person_name,
-        similarity: data.similarity || existing.similarity,
-        alert_level: data.alert_level || existing.alert_level
+        ...alertItem,
+        id: existing.id, // Keep original ID/key
+        thumbnail: alertItem.thumbnail || existing.thumbnail,
       }
       // Move to top
       if (existingIndex > 0) {
@@ -271,159 +323,24 @@ const handleAlertMessage = (data: WsAlertData) => {
     }
   }
 
-  const alert = {
-    id: data.alert_id?.toString() || Date.now().toString(),
-    camera_id: data.camera_id,
-    camera_name: data.camera_name || '未知摄像头',
-    person_name: data.person_name || '陌生人',
-    similarity: data.similarity || 0,
-    alert_type: data.alert_type || 'stranger',
-    face_image: data.face_image ? `data:image/jpeg;base64,${data.face_image}` : undefined,
-    timestamp: new Date(),
-    track_id: data.track_id,
-    alert_level: data.alert_level
-  }
+  // Add new alert
+  recentAlerts.value.unshift(alertItem)
   
-  // 添加到最近告警列表顶部
-  recentAlerts.value.unshift(alert)
-  
-  // 限制数量
+  // Limit size
   if (recentAlerts.value.length > maxRecentAlerts) {
     recentAlerts.value = recentAlerts.value.slice(0, maxRecentAlerts)
   }
 }
 
-/**
- * 处理摄像头状态更新
- */
-const handleCameraStatusMessage = (data: WsCameraStatusData) => {
-  // 更新摄像头实时状态
-  cameraStats.value.set(data.camera_id, {
-    status: data.status,
-    fps: data.fps || 0,
-    queue_size: data.queue_size || 0,
-    total_frames: data.total_frames || 0,
-    processed_frames: data.processed_frames || 0
-  })
-  
-  // 更新 cameras 列表中的状态
-  const camera = cameras.value.find(c => c.id === data.camera_id)
-  if (camera) {
-    camera.status = data.status as any
-  }
-}
-
-/**
- * 加载引擎摄像头状态
- */
-const loadEngineStatus = async () => {
-  try {
-    // 获取引擎整体状态
-    const engineData = await engineApi.getStatus()
-    localEngineStatus.value = engineData.status || 'unavailable'
-    
-    // 获取摄像头详细状态
-    const cameraData = await engineApi.getCameras()
-    cameraData.forEach(cam => {
-      cameraStats.value.set(cam.camera_id, {
-        status: cam.status,
-        fps: cam.fps,
-        queue_size: cam.queue_size,
-        total_frames: cam.total_frames,
-        processed_frames: cam.processed_frames
-      })
-    })
-  } catch (error) {
-    console.error('加载引擎状态失败:', error)
-    localEngineStatus.value = 'unavailable'
-  }
-}
-
-/**
- * 获取摄像头实时 FPS
- */
-const getCameraFps = (cameraId: number) => {
-  const stats = cameraStats.value.get(cameraId)
-  return stats?.fps?.toFixed(1) || '-'
-}
-
-/**
- * 获取视频流 URL
- */
-const getStreamUrl = (cameraId: number) => {
-  const token = localStorage.getItem('access_token')
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
-  return `${baseUrl}/cameras/${cameraId}/stream?token=${token}`
-}
-
-// 视频流状态
-const streamErrors = ref<Set<number>>(new Set())
-
-/**
- * 处理视频流加载错误
- */
-const handleStreamError = (slotIndex: number) => {
-  const camera = selectedCameras.value[slotIndex]
-  if (camera) {
-    streamErrors.value.add(camera.id)
-    console.error(`视频流加载失败: ${camera.name}`)
-  }
-}
-
-/**
- * 处理视频流加载成功
- */
-const handleStreamLoad = (slotIndex: number) => {
-  const camera = selectedCameras.value[slotIndex]
-  if (camera) {
-    streamErrors.value.delete(camera.id)
-  }
-}
-
-/**
- * 清空告警列表
- */
-const clearAlerts = () => {
-  recentAlerts.value = []
-}
-
-// ============ WebSocket 事件监听 ============
-
-let alertHandler: ((data: any) => void) | null = null
-let cameraStatusHandler: ((data: any) => void) | null = null
-
 // ============ 生命周期 ============
 
-let statusTimer: ReturnType<typeof setInterval> | null = null
-
-onMounted(async () => {
-  await loadCameras()
-  loadEngineStatus()
-  document.addEventListener('fullscreenchange', handleFullscreenChange)
-  
-  // 注册 WebSocket 事件处理
-  alertHandler = (data: any) => handleAlertMessage(data)
-  cameraStatusHandler = (data: any) => handleCameraStatusMessage(data)
-  
-  on('alert', alertHandler)
-  on('camera_status', cameraStatusHandler)
-  
-  // 定时刷新引擎状态
-  statusTimer = setInterval(loadEngineStatus, 5000)
+onMounted(() => {
+  loadCameras()
+  on('alert', handleAlertMessage)
 })
 
 onUnmounted(() => {
-  // 清除定时器
-  if (statusTimer) {
-    clearInterval(statusTimer)
-    statusTimer = null
-  }
-  
-  document.removeEventListener('fullscreenchange', handleFullscreenChange)
-  
-  // 移除事件监听
-  if (alertHandler) off('alert', alertHandler)
-  if (cameraStatusHandler) off('camera_status', cameraStatusHandler)
+  off('alert', handleAlertMessage)
 })
 </script>
 
@@ -745,8 +662,8 @@ onUnmounted(() => {
                 <!-- 人脸图片 -->
                 <div class="w-12 h-12 rounded-lg overflow-hidden bg-primary-200 flex-shrink-0">
                   <img
-                    v-if="alert.face_image"
-                    :src="alert.face_image"
+                    v-if="alert.thumbnail"
+                    :src="alert.thumbnail"
                     class="w-full h-full object-cover"
                     alt="人脸"
                   />
@@ -762,21 +679,21 @@ onUnmounted(() => {
                   <div class="flex items-center gap-2">
                     <span :class="[
                       'text-xs px-1.5 py-0.5 rounded text-white',
-                      getAlertTypeColor(alert.alert_type)
+                      getAlertTypeColor(alert.alertType)
                     ]">
-                      {{ getAlertTypeText(alert.alert_type) }}
+                      {{ getAlertTypeText(alert.alertType) }}
                     </span>
                     <span :class="['text-xs', isFullscreen ? 'text-gray-500' : 'text-primary-400']">
-                      {{ formatTime(alert.timestamp) }}
+                      {{ formatTime(alert.createdAt) }}
                     </span>
                   </div>
                   <p :class="['font-medium truncate mt-1', isFullscreen ? 'text-white' : 'text-primary-900']">
-                    {{ alert.person_name }}
+                    {{ alert.personName }}
                   </p>
                   <p :class="['text-xs truncate', isFullscreen ? 'text-gray-400' : 'text-primary-500']">
-                    {{ alert.camera_name }}
-                    <span v-if="alert.similarity > 0" class="ml-1">
-                      · 相似度 {{ (alert.similarity * 100).toFixed(0) }}%
+                    {{ alert.cameraName }}
+                    <span v-if="alert.confidence > 0" class="ml-1">
+                      · 相似度 {{ (alert.confidence * 100).toFixed(0) }}%
                     </span>
                   </p>
                 </div>
@@ -801,7 +718,7 @@ onUnmounted(() => {
         <div class="absolute inset-0 bg-black/50" @click="showSelectModal = false" />
         <div class="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 animate-fade-in max-h-[80vh] flex flex-col">
           <div class="px-6 py-4 border-b border-primary-100 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-primary-900">选择摄像头</h3>
+            <h3 class="text-lg font-bold text-primary-900">选择摄像头</h3>
             <button @click="showSelectModal = false" class="text-primary-400 hover:text-primary-600">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -809,108 +726,79 @@ onUnmounted(() => {
             </button>
           </div>
           
-          <!-- 筛选 -->
-          <div class="px-6 py-3 border-b border-primary-100">
-            <select v-model="zoneFilter" class="input">
-              <option value="">全部区域</option>
-              <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.name }}</option>
-            </select>
+          <div class="p-4 border-b border-primary-100">
+            <div class="flex gap-2">
+              <input 
+                v-model="zoneFilter"
+                type="text"
+                placeholder="搜索区域..."
+                class="flex-1 px-3 py-2 border border-primary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-500/50"
+              />
+            </div>
           </div>
 
-          <!-- 摄像头列表 -->
           <div class="flex-1 overflow-y-auto p-4">
-            <div v-if="filteredCameras.length === 0" class="text-center py-8 text-primary-500">
-              暂无摄像头
-            </div>
-            <div v-else class="space-y-2">
-              <button
-                v-for="camera in filteredCameras"
-                :key="camera.id"
-                @click="selectCamera(camera)"
-                class="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-primary-50 transition-colors text-left"
-              >
-                <!-- 状态图标 -->
-                <div :class="[
-                  'w-10 h-10 rounded-lg flex items-center justify-center',
-                  camera.status === 'online' ? 'bg-success-100' : 'bg-primary-100'
-                ]">
-                  <svg :class="[
-                    'w-5 h-5',
-                    camera.status === 'online' ? 'text-success-600' : 'text-primary-400'
-                  ]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <!-- 信息 -->
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <span class="font-medium text-primary-900 truncate">{{ camera.name }}</span>
-                    <span :class="[
-                      'text-xs px-1.5 py-0.5 rounded',
-                      camera.status === 'online' ? 'bg-success-100 text-success-700' : 'bg-primary-100 text-primary-500'
-                    ]">
-                      {{ getStatusText(camera.status) }}
-                    </span>
-                  </div>
-                  <p class="text-sm text-primary-500 truncate">
-                    {{ camera.zone?.name || '未分配区域' }}
-                  </p>
-                </div>
-                <!-- 箭头 -->
-                <svg class="w-5 h-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
+             <div v-if="loading" class="text-center py-8 text-primary-500">加载中...</div>
+             <div v-else class="grid gap-2">
+               <div 
+                 v-for="camera in filteredCameras"
+                 :key="camera.id"
+                 @click="selectCamera(camera)"
+                 :class="[
+                   'p-3 rounded-lg border cursor-pointer transition-colors flex items-center justify-between',
+                   camera.status === 'online' ? 'bg-white border-primary-200 hover:border-accent-500' : 'bg-gray-50 border-gray-200 opacity-60'
+                 ]"
+               >
+                 <div class="flex items-center gap-3">
+                   <div :class="['w-2 h-2 rounded-full', getStatusColor(camera.status)]" />
+                   <div>
+                     <p class="font-medium text-primary-900">{{ camera.name }}</p>
+                     <p class="text-xs text-primary-500">
+                       {{ camera.zone?.name || '未分配区域' }}
+                     </p>
+                   </div>
+                 </div>
+                 <div class="text-xs text-primary-400">
+                   <span v-if="camera.is_analyzing" class="text-success-600 mr-2">分析中</span>
+                   {{ getStatusText(camera.status) }}
+                 </div>
+               </div>
+             </div>
           </div>
         </div>
       </div>
     </Teleport>
 
-    <!-- 单路放大查看 -->
+    <!-- 单个视频放大查看 -->
     <Teleport to="body">
-      <div v-if="showSingleView && singleViewCamera" class="fixed inset-0 z-50 bg-black flex flex-col">
-        <!-- 顶部栏 -->
-        <div class="flex items-center justify-between p-4 bg-black/50">
-          <div class="flex items-center gap-3">
-            <div :class="['w-3 h-3 rounded-full', getStatusColor(singleViewCamera.status)]" />
-            <span class="text-white font-medium">{{ singleViewCamera.name }}</span>
-            <span class="text-white/60 text-sm">{{ singleViewCamera.zone?.name || '' }}</span>
-          </div>
-          <button
-            @click="showSingleView = false"
-            class="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg"
-          >
-            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <!-- 视频区域 -->
-        <div class="flex-1 flex items-center justify-center">
-          <div class="w-full max-w-5xl aspect-video bg-primary-900 rounded-lg flex items-center justify-center">
-            <div class="text-center">
-              <svg class="w-24 h-24 mx-auto text-primary-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              <p class="text-primary-400 mt-4">
-                {{ singleViewCamera.status === 'online' ? '视频流加载中...' : '信号丢失' }}
-              </p>
-              <p class="text-primary-500 text-sm mt-2">
-                {{ singleViewCamera.resolution || '-' }} · {{ singleViewCamera.fps || '-' }} FPS
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- 底部信息 -->
-        <div class="p-4 bg-black/50">
-          <div class="flex items-center justify-center gap-6 text-sm text-white/60">
-            <span>RTSP: {{ singleViewCamera.rtsp_url }}</span>
-            <span>分析: {{ singleViewCamera.is_analyzing ? '开启' : '关闭' }}</span>
-          </div>
-        </div>
+      <div v-if="showSingleView && singleViewCamera" class="fixed inset-0 z-[60] bg-black flex flex-col">
+         <div class="h-14 flex items-center justify-between px-4 bg-gray-900 border-b border-gray-800">
+           <div class="flex items-center gap-3">
+             <div :class="['w-2.5 h-2.5 rounded-full', getStatusColor(singleViewCamera.status)]" />
+             <h3 class="text-white font-medium text-lg">{{ singleViewCamera.name }}</h3>
+             <span class="text-white/50 text-sm border-l border-white/20 pl-3">
+               {{ singleViewCamera.zone?.name }}
+             </span>
+           </div>
+           <button @click="showSingleView = false" class="text-white/70 hover:text-white p-2 rounded-lg hover:bg-white/10">
+             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+             </svg>
+           </button>
+         </div>
+         <div class="flex-1 relative">
+           <LiveStream
+             v-if="singleViewCamera.status === 'online'"
+             :camera-id="singleViewCamera.id"
+             class="w-full h-full object-contain"
+           />
+           <div v-else class="w-full h-full flex flex-col items-center justify-center text-white/50">
+             <svg class="w-16 h-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+             </svg>
+             <p>摄像头离线</p>
+           </div>
+         </div>
       </div>
     </Teleport>
   </div>
