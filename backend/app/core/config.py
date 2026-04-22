@@ -55,8 +55,9 @@ class Settings(BaseSettings):
     DATA_RETENTION_DAYS: int = 30
     CAPTURE_QUALITY: int = 85
     
-    # CORS 配置
-    CORS_ORIGINS: list = ["*"]
+    # CORS 配置（生产环境务必指定具体域名，逗号分隔）
+    # 示例: CORS_ORIGINS=http://192.168.1.100:5173,http://example.com
+    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:8001"]
     
     # ROI 区域配置 (x_min, y_min, x_max, y_max) 0.0-1.0
     # 左上角为(0,0), 右下角为(1,1)

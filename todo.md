@@ -2,11 +2,20 @@
 
 > 基于 Requirements.md V2.0 需求文档制定的开发计划
 
+> [!WARNING]
+> **架构变更说明（ 2025-04 ）**
+> 项目在开发过程中经历了重大架构调整：
+> - 人脸检测：~~InsightFace~~ → **YOLO v8/v11**（身体追踪 + 人脸检测）
+> - 多目标追踪：新增 **ByteTrack** 持续追踪
+> - 人脸识别：~~InsightFace 本地特征比对~~ → **CompreFace** 远程 REST API
+> - 分析管道：~~Pipeline 节点链~~ → `YoloTracker.process()` 单体函数（Pipeline 模块保留但未使用）
+> - 报警模型：新增 `alert_level`、`track_id`、`image_history`、合并/降级决策逻辑
+
 ## 📋 项目概览
 
 | 项目名称 | 视频流陌生人检测报警系统 |
 |---------|------------------------|
-| 技术栈（后端） | FastAPI + SQLAlchemy (Async) + OpenCV + InsightFace |
+| 技术栈（后端） | FastAPI + SQLAlchemy (Async) + OpenCV + YOLO + ByteTrack + CompreFace |
 | 技术栈（前端） | Vue 3 + Vite + Shadcn-vue + TailwindCSS |
 | 数据库 | PostgreSQL 15+ |
 | 实时通信 | WebSocket |
@@ -110,17 +119,17 @@
 - [x] 安装并配置 PostgreSQL 15+ 数据库
 - [x] 配置环境变量文件 (.env / .env.example)
 - [x] 配置 Git (.gitignore)
-- [ ] 编写项目 README.md 文档
+- [x] 编写项目 README.md 文档
 
 ### 1.2 后端项目初始化
 - [x] 初始化 FastAPI 项目框架
 - [x] 配置 SQLAlchemy (Async) ORM
 - [x] 配置数据库连接与迁移工具 (Alembic)
-- [ ] 配置日志系统 (loguru / logging)
-- [ ] 配置 CORS 中间件
-- [ ] 配置全局异常处理器
+- [x] 配置日志系统 (RotatingFileHandler，app.log + error.log)
+- [x] 配置 CORS 中间件（已收紧，默认仅允许 localhost）
+- [x] 配置全局异常处理器（RequestValidationError + Exception）
 - [ ] 配置 API 限流中间件 (slowapi)
-- [ ] 配置静态文件服务 (截图访问)
+- [x] 配置静态文件服务 (截图访问)
 - [x] 编写 requirements.txt 依赖清单
 
 ### 1.3 前端项目初始化

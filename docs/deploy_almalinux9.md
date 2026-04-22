@@ -2,6 +2,11 @@
 
 本文档详细介绍了如何在 AlmaLinux 9 服务器上部署视频监控报警系统，包括环境准备、后端部署、前端构建、数据库配置以及 Nginx 反向代理设置。
 
+> **前置依赖说明**
+> - **YOLO 模型文件**：需将 `yolo11n.pt`（身体检测）和 `face_yolov8n.pt`（人脸检测）放入 `backend/data/models/` 目录
+> - **CompreFace 服务**：需独立部署 CompreFace 人脸识别服务（Docker 方式，参见下方第 6 节）
+> - **GPU 加速（可选）**：YOLO 推理支持 CUDA，如有 NVIDIA GPU 可安装 `torch` GPU 版本
+
 ---
 
 ## 1. 前期准备 (Environment Preparation)

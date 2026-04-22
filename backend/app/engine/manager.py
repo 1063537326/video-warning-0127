@@ -227,14 +227,16 @@ class EngineManager:
             self.start_camera(i)
 
     def _analysis_loop(self, camera_id: int, stop_event: threading.Event):
-        """分析主循环"""
+        """
+        分析主循环（在独立线程中运行）
+
+        关键设计：所有 asyncio 协程统一通过 run_coroutine_threadsafe 
+        提交到主线程的 event loop 执行，避免跨线程使用 asyncio 原语。
+        """
         task = self._cameras.get(camera_id)
         if not task: return
         
         logger.info(f"Analysis loop started for camera {camera_id}")
-        
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         
         while not stop_event.is_set():
             try:
@@ -242,11 +244,10 @@ class EngineManager:
                 frame_data = task.capture.get_frame(timeout=0.5)
                 if frame_data is None: continue
                 
-                # 2. 追踪处理
+                # 2. 追踪处理（纯 CPU 计算，在当前线程执行）
                 annotated_frame, events = task.tracker.process(frame_data.frame, frame_data.timestamp)
                 
-                # 3. 广播直播流 (MJPEG)
-                # 使用 threadsafe 调用提交给主线程 Loop
+                # 3. 广播直播流 (MJPEG) — 提交到主线程 loop
                 if self._main_loop and not self._main_loop.is_closed():
                     _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
                     jpg_bytes = buffer.tobytes()
@@ -255,15 +256,24 @@ class EngineManager:
                         self._main_loop
                     )
                 
-                # 运行异步处理逻辑 (识别 + 报警)
-                # 注意: 这里使用当前线程的 loop 等待结果
-                loop.run_until_complete(self._handle_analysis_events(camera_id, events))
+                # 4. 处理分析事件（识别 + 报警）— 提交到主线程 loop
+                # 确保 CompreFace 客户端的 Semaphore 在正确的 loop 上操作
+                if events and self._main_loop and not self._main_loop.is_closed():
+                    future = asyncio.run_coroutine_threadsafe(
+                        self._handle_analysis_events(camera_id, events),
+                        self._main_loop
+                    )
+                    try:
+                        # 等待完成，设置超时防止永久阻塞
+                        future.result(timeout=30.0)
+                    except TimeoutError:
+                        logger.warning(f"Camera {camera_id}: 事件处理超时（30s）")
+                    except Exception as e:
+                        logger.error(f"Camera {camera_id}: 事件处理异常: {e}")
                 
             except Exception as e:
-                logger.error(f"Analysis error: {e}")
+                logger.error(f"Analysis error for camera {camera_id}: {e}")
                 time.sleep(1)
-                
-        loop.close()
 
     async def _handle_analysis_events(self, camera_id: int, events: List[TrackerEvent]):
         """处理事件 (在分析线程的 loop 中运行)"""

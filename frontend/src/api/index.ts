@@ -444,6 +444,8 @@ export const engineApi = {
 export const healthApi = {
   /**
    * 健康检查
+   * 
+   * 不走 api 拦截器（无需 Token），直接请求后端根路径的 /health 端点。
    */
   check: (): Promise<{
     status: string
@@ -451,9 +453,12 @@ export const healthApi = {
     version: string
     engine_status: string
     websocket_clients: number
-  }> => axios.get(
-    (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8001'
-  ).then(res => res.data),
+  }> => {
+    const baseUrl = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1'
+    // 从 API base URL 推导出服务根路径（去掉 /api/v1）
+    const serverUrl = baseUrl.replace(/\/api\/v1\/?$/, '')
+    return axios.get(`${serverUrl}/health`).then(res => res.data)
+  },
 }
 
 export default api

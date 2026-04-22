@@ -13,6 +13,11 @@ engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
     future=True,
+    # 连接池配置
+    pool_size=10,           # 基础连接池大小
+    max_overflow=20,        # 超出 pool_size 后允许的额外连接数
+    pool_recycle=3600,      # 每小时回收连接（防止 DB 端超时断开）
+    pool_pre_ping=True,     # 使用前检测连接是否存活
 )
 
 # 创建异步会话工厂

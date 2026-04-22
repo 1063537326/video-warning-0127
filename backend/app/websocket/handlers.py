@@ -310,10 +310,11 @@ async def engine_alert_callback(alert_data: dict) -> None:
                 alert_data['id'] = new_alert.id
             
     except Exception as e:
-        logger.error(f"报警入库失败: {e}")
-        # db.rollback() # Not needed with async context manager generally, but safety
-        # If we were in a transaction that failed, we might need it.
-        # But AsyncSessionLocal context manager closes the session.
+        logger.error(f"报警入库失败: {e}", exc_info=True)
+        try:
+            await db.rollback()
+        except Exception:
+            pass  # rollback 本身失败时忽略，session 会在 async with 退出时关闭
 
     # 2. 推送 WebSocket
     if should_push:

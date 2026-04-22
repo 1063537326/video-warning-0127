@@ -117,10 +117,7 @@ class CompreFaceClient:
         result = await self._request("DELETE", f"/api/v1/recognition/faces/{image_id}")
         return result is not None
 
-    async def delete_image_by_id(self, image_id: str) -> bool:
-        """删除指定的人脸图片"""
-        result = await self._request("DELETE", f"/api/v1/recognition/faces/{image_id}")
-        return result is not None
+
 
 # 全局单例
 compreface_client = CompreFaceClient()

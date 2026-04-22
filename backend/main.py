@@ -24,10 +24,12 @@ from app.websocket import (
     engine_status_callback,
 )
 
-# 配置日志
-logging.basicConfig(
+from app.core.logging_config import setup_logging
+
+# 初始化日志系统（带文件轮转）
+setup_logging(
+    log_dir="logs",
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -161,6 +163,54 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+
+# ============ 全局异常处理 ============
+
+from fastapi import Request as FastAPIRequest
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: FastAPIRequest, exc: RequestValidationError):
+    """处理请求参数验证错误，返回友好的 422 响应"""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "请求参数验证失败",
+            "errors": [
+                {
+                    "field": ".".join(str(loc) for loc in err.get("loc", [])),
+                    "message": err.get("msg", ""),
+                    "type": err.get("type", ""),
+                }
+                for err in exc.errors()
+            ],
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: FastAPIRequest, exc: Exception):
+    """
+    全局异常处理器
+    
+    捕获所有未处理的异常，返回标准 JSON 格式错误响应。
+    生产环境不暴露内部错误详情。
+    """
+    logger.error(f"未处理的异常: {request.method} {request.url} - {exc}", exc_info=True)
+    
+    detail = str(exc) if settings.DEBUG else "服务器内部错误，请稍后重试"
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": detail,
+            "error_type": type(exc).__name__ if settings.DEBUG else "InternalServerError",
+        },
+    )
+
+
 # 静态文件服务（人脸图片、截图等）
 app.mount("/static", StaticFiles(directory=settings.DATA_DIR), name="static")
 
@@ -170,18 +220,46 @@ app.include_router(api_v1_router, prefix="/api/v1")
 
 @app.get("/health", tags=["健康检查"])
 async def health_check():
-    """健康检查接口"""
-    engine_status = "unavailable"
-    if _engine_manager is not None:
-        engine_status = _engine_manager.status.value
+    """
+    健康检查接口（增强版）
     
-    return {
+    检查各子系统状态：应用、数据库、引擎、WebSocket、CompreFace。
+    """
+    result = {
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
-        "engine_status": engine_status,
+        "engine_status": "unavailable",
         "websocket_clients": ws_manager.client_count,
+        "checks": {},
     }
+    
+    # 1. 引擎状态
+    if _engine_manager is not None:
+        result["engine_status"] = _engine_manager.status.value
+    result["checks"]["engine"] = result["engine_status"]
+    
+    # 2. 数据库连通性检查
+    try:
+        from app.core.database import AsyncSessionLocal
+        from sqlalchemy import text
+        async with AsyncSessionLocal() as db:
+            await db.execute(text("SELECT 1"))
+        result["checks"]["database"] = "ok"
+    except Exception as e:
+        result["checks"]["database"] = f"error: {str(e)[:100]}"
+        result["status"] = "degraded"
+    
+    # 3. CompreFace 可达性检查（简单 ping）
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(f"{settings.COMPREFACE_URL}/api/v1/recognition/subjects")
+            result["checks"]["compreface"] = "ok" if resp.status_code in (200, 401, 403) else f"status:{resp.status_code}"
+    except Exception:
+        result["checks"]["compreface"] = "unreachable"
+    
+    return result
 
 
 @app.websocket("/ws")
