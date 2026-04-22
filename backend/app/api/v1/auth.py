@@ -1,13 +1,10 @@
 """
-Authentication API
-- Login
-- Logout
-- Token refresh
-- Get current user
-- Change password
+认证 API
+
+提供登录、登出、Token 刷新、获取当前用户、修改密码等接口。
 """
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,39 +31,40 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
-    request: LoginRequest,
+    request_body: LoginRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """User login"""
-    # Find user
+    """用户登录"""
+    # 查找用户
     result = await db.execute(
-        select(User).where(User.username == request.username)
+        select(User).where(User.username == request_body.username)
     )
     user = result.scalar_one_or_none()
     
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
+            detail="用户名或密码错误"
         )
     
-    # Verify password
-    if not verify_password(request.password, user.password_hash):
+    # 验证密码
+    if not verify_password(request_body.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
+            detail="用户名或密码错误"
         )
     
-    # Check if user is active
+    # 检查用户是否启用
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User is disabled"
+            detail="用户已被禁用"
         )
     
-    # Update last login time
+    # 更新最后登录时间
     await db.execute(
-        update(User).where(User.id == user.id).values(last_login_at=datetime.utcnow())
+        update(User).where(User.id == user.id).values(last_login_at=datetime.now(timezone.utc))
     )
     await db.commit()
     

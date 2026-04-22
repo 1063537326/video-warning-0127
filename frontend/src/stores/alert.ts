@@ -42,29 +42,55 @@ export interface AlertNotification {
 }
 
 /**
- * 播放报警音效 (使用 Web Audio API 生成 Beep 声)
+ * 播放报警音效（Web Audio API）
+ * 
+ * 根据报警级别播放不同模式的音效：
+ * - critical: 急促双音（880Hz→440Hz 两次）
+ * - warning: 中等单音（660Hz→330Hz）
+ * - info: 柔和短音（440Hz）
+ * 
+ * @param level - 报警级别
  */
-function playAlertSound() {
+function playAlertSound(level: 'critical' | 'warning' | 'info' = 'warning') {
   try {
     const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContext) return;
 
     const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    
+    /**
+     * 生成一个音调
+     */
+    const playTone = (freq: number, startTime: number, duration: number, volume: number = 0.3) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq / 2, startTime + duration);
+      gain.gain.setValueAtTime(volume, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1); // Drop to A4
-
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-
-    osc.start();
-    osc.stop(ctx.currentTime + 0.1);
+    switch (level) {
+      case 'critical':
+        // 急促双音
+        playTone(880, ctx.currentTime, 0.12, 0.4);
+        playTone(880, ctx.currentTime + 0.18, 0.12, 0.4);
+        break;
+      case 'warning':
+        // 中等单音
+        playTone(660, ctx.currentTime, 0.15, 0.3);
+        break;
+      case 'info':
+      default:
+        // 柔和短音
+        playTone(440, ctx.currentTime, 0.08, 0.15);
+        break;
+    }
   } catch (error) {
     console.warn('播放报警音效失败:', error)
   }
@@ -153,9 +179,9 @@ export const useAlertStore = defineStore('alert', () => {
       notifications.value = notifications.value.slice(0, maxNotifications)
     }
 
-    // 播放报警音效
+    // 播放报警音效（根据级别区分）
     if (soundEnabled.value) {
-      playAlertSound()
+      playAlertSound(alert.alertLevel || 'warning')
     }
   }
 

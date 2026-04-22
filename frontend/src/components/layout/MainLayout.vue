@@ -9,7 +9,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAlertStore } from '@/stores/alert'
 import { useTheme } from '@/composables/useTheme'
-import { useWebSocket } from '@/composables/useWebSocket'
+import { useWebSocketStore } from '@/stores/websocket'
 import { engineApi } from '@/api'
 import NotificationFeed from '@/components/business/NotificationFeed.vue'
 
@@ -19,8 +19,10 @@ const { themeMode, cycleTheme } = useTheme()
 // 报警通知
 const alertStore = useAlertStore()
 
-// WebSocket 连接
-const { isConnected, engineStatus: wsEngineStatus } = useWebSocket()
+// WebSocket 连接（全局单例，MainLayout 作为唯一的连接入口）
+const wsStore = useWebSocketStore()
+const isConnected = computed(() => wsStore.isConnected)
+const wsEngineStatus = computed(() => wsStore.engineStatus)
 
 // 本地引擎状态（通过 API 获取）
 const localEngineStatus = ref<string>('unavailable')
@@ -116,6 +118,8 @@ const handleLogout = async () => {
 // ============ 生命周期 ============
 
 onMounted(() => {
+  // 初始化 WebSocket 全局连接
+  wsStore.connect()
   // 初始化时获取引擎状态
   loadEngineStatus()
   // 每 5 秒刷新一次引擎状态
@@ -128,6 +132,8 @@ onUnmounted(() => {
     clearInterval(engineStatusTimer)
     engineStatusTimer = null
   }
+  // 断开 WebSocket
+  wsStore.disconnect()
 })
 </script>
 

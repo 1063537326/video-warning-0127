@@ -6,19 +6,16 @@
  */
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { cameraApi, zoneApi } from '@/api'
-import { useWebSocket } from '@/composables/useWebSocket'
+import { useWebSocketStore } from '@/stores/websocket'
 import type { Camera, Zone, WsAlertData } from '@/types'
 import LiveStream from '@/components/business/LiveStream.vue'
 import { type AlertNotification } from '@/stores/alert'
 
 // ============ WebSocket ============
 
-const { 
-  isConnected, 
-  engineStatus: wsEngineStatus, 
-  on, 
-  off
-} = useWebSocket()
+const wsStore = useWebSocketStore()
+const isConnected = computed(() => wsStore.isConnected)
+const wsEngineStatus = computed(() => wsStore.engineStatus)
 
 // 本地引擎状态（从 API 获取）
 const localEngineStatus = ref<string>('unavailable')
