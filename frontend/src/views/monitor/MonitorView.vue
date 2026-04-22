@@ -333,11 +333,11 @@ const handleAlertMessage = (data: WsAlertData) => {
 
 onMounted(() => {
   loadCameras()
-  on('alert', handleAlertMessage)
+  wsStore.on('alert', handleAlertMessage)
 })
 
 onUnmounted(() => {
-  off('alert', handleAlertMessage)
+  wsStore.off('alert', handleAlertMessage)
 })
 </script>
 

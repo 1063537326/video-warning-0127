@@ -1,42 +1,14 @@
 """
 人脸识别模块
 
-提供人脸检测、特征提取、人脸比对功能，支持：
-- InsightFace 人脸检测
-- 512 维特征向量提取
-- 余弦相似度比对
-- 人脸库管理
-- 报警冷却控制
+提供 CompreFace 远程人脸识别功能：
+- CompreFace REST API 客户端
+- 人脸注册与删除
+- 人脸识别与比对
 """
-from .face_detector import (
-    FaceDetector,
-    FaceInfo,
-    DetectorConfig,
-)
-from .face_database import (
-    FaceDatabase,
-    PersonFeature,
-    MatchResult,
-)
-from .face_recognizer import (
-    FaceRecognizer,
-    RecognitionResult,
-    RecognizerConfig,
-    AlertCooldownManager,
-)
+from .client import CompreFaceClient, compreface_client
 
 __all__ = [
-    # 检测器
-    "FaceDetector",
-    "FaceInfo",
-    "DetectorConfig",
-    # 数据库
-    "FaceDatabase",
-    "PersonFeature",
-    "MatchResult",
-    # 识别器
-    "FaceRecognizer",
-    "RecognitionResult",
-    "RecognizerConfig",
-    "AlertCooldownManager",
+    "CompreFaceClient",
+    "compreface_client",
 ]
