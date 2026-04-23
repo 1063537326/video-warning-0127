@@ -159,7 +159,7 @@ export const cameraApi = {
     api.get('/cameras/all'),
 
   /** 获取摄像头状态 */
-  getStatus: (): Promise<{ items: Camera[]; stats: CameraStatusStats }> =>
+  getStatus: (): Promise<CameraStatusStats> =>
     api.get('/cameras/status'),
 
   /** 创建摄像头 */

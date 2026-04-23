@@ -16,7 +16,7 @@ const cameras = ref<Camera[]>([])
 const zones = ref<Zone[]>([])
 const pagination = reactive({
   page: 1,
-  pageSize: 10,
+  pageSize: 20,  // ===== 每页条数配置（可在此处调整）=====
   total: 0,
   totalPages: 0
 })

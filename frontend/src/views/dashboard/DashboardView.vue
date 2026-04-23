@@ -44,6 +44,13 @@ const groupCount = ref(0)
 
 // 趋势图数据
 const trendPeriod = ref<'7d' | '30d' | '90d'>('7d')
+
+/** 将前端 period 标签映射为后端 API 参数 */
+const trendPeriodMap: Record<string, string> = {
+  '7d': 'week',
+  '30d': 'month',
+  '90d': 'month',  // 后端不支持90天，复用month
+}
 const trendData = ref<any[]>([])
 const trendLoading = ref(false)
 
@@ -60,7 +67,8 @@ const loadData = async () => {
     ])
     
     alertStats.value = alertRes
-    cameraStats.value = cameraRes.stats
+    // 后端 /cameras/status 直接返回顶级对象（含 online_count, total 等）
+    cameraStats.value = cameraRes
     systemStatus.value = systemRes
     personCount.value = personRes.total
     groupCount.value = groupRes.total
@@ -77,7 +85,7 @@ const loadData = async () => {
 const loadTrendData = async () => {
   trendLoading.value = true
   try {
-    const res = await alertApi.getTrend(trendPeriod.value)
+    const res = await alertApi.getTrend(trendPeriodMap[trendPeriod.value] || 'week')
     trendData.value = res.items || []
   } catch (error) {
     console.error('Failed to load trend data:', error)
@@ -119,9 +127,9 @@ const chartTheme = computed(() => ({
  */
 const trendChartOption = computed(() => {
   const dates = trendData.value.map(item => item.date)
-  const strangerData = trendData.value.map(item => item.stranger || 0)
-  const knownData = trendData.value.map(item => item.known || 0)
-  const blacklistData = trendData.value.map(item => item.blacklist || 0)
+  const strangerData = trendData.value.map(item => item.stranger_count || 0)
+  const knownData = trendData.value.map(item => item.known_count || 0)
+  const blacklistData = trendData.value.map(item => item.blacklist_count || 0)
 
   return {
     backgroundColor: chartTheme.value.backgroundColor,
@@ -358,7 +366,7 @@ const changeTrendPeriod = (period: '7d' | '30d' | '90d') => {
           </div>
           <div>
             <p class="stat-value text-success-600">
-              {{ cameraStats?.online || 0 }}<span class="text-sm text-primary-400">/{{ cameraStats?.total || 0 }}</span>
+              {{ cameraStats?.online_count || 0 }}<span class="text-sm text-primary-400">/{{ cameraStats?.total || 0 }}</span>
             </p>
             <p class="stat-label">在线摄像头</p>
           </div>
@@ -428,7 +436,7 @@ const changeTrendPeriod = (period: '7d' | '30d' | '90d') => {
             <h3 class="font-semibold text-primary-900 dark:text-primary-100">类型分布</h3>
           </div>
           <div class="card-body">
-            <div v-if="!alertStats" class="flex items-center justify-center h-48 text-primary-500 dark:text-primary-400">
+            <div v-if="!alertStats || alertStats.total === 0" class="flex items-center justify-center h-48 text-primary-500 dark:text-primary-400">
               <p>暂无数据</p>
             </div>
             <v-chart 

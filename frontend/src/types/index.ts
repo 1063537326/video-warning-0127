@@ -96,10 +96,11 @@ export interface ZoneSimple {
 
 /** 摄像头状态统计 */
 export interface CameraStatusStats {
-  online: number
-  offline: number
-  error: number
+  online_count: number
+  offline_count: number
+  error_count: number
   total: number
+  items?: any[]
 }
 
 // ============ 人员相关 ============
