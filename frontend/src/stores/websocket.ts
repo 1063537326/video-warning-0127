@@ -14,6 +14,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAlertStore } from '@/stores/alert'
+import { resolveThumbnail, resolveImageSrc } from '@/utils/image'
 import type {
   WsMessage,
   WsMessageType,
@@ -217,11 +218,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
       personId: data.person_id,
       personName: data.person_name,
       confidence: data.confidence || 0,
-      thumbnail: data.face_image ? (data.face_image.startsWith('/') ? data.face_image : `data:image/jpeg;base64,${data.face_image}`)
-        : data.body_image ? (data.body_image.startsWith('/') ? data.body_image : `data:image/jpeg;base64,${data.body_image}`)
-          : data.full_image ? (data.full_image.startsWith('/') ? data.full_image : `data:image/jpeg;base64,${data.full_image}`)
-            : '',
-      fullImage: data.full_image ? (data.full_image.startsWith('/') ? data.full_image : `data:image/jpeg;base64,${data.full_image}`) : '',
+      thumbnail: resolveThumbnail(data.face_image, data.body_image, data.full_image),
+      fullImage: resolveImageSrc(data.full_image) || '',
       createdAt: data.timestamp || new Date().toISOString(),
       trackId: data.track_id,
       alertLevel: data.alert_level,
@@ -236,8 +234,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
       personId: data.person_id,
       personName: data.person_name,
       confidence: data.confidence || 0,
-      thumbnail: data.face_image ? `data:image/jpeg;base64,${data.face_image}` : '',
-      fullImage: data.full_image ? `data:image/jpeg;base64,${data.full_image}` : '',
+      thumbnail: resolveThumbnail(data.face_image, data.body_image, data.full_image),
+      fullImage: resolveImageSrc(data.full_image) || '',
       createdAt: data.timestamp || new Date().toISOString(),
       trackId: data.track_id,
       alertLevel: data.alert_level,

@@ -6,6 +6,8 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { alertApi } from '@/api'
+import { resolveImageSrc } from '@/utils/image'
 
 /** 报警通知 */
 export interface AlertNotification {
@@ -111,6 +113,28 @@ export const useAlertStore = defineStore('alert', () => {
 
   // 最大通知数量
   const maxNotifications = 100
+
+  // ============ 分页/API 加载状态 ============
+
+  /** ===== 分页配置（可在此处调整每页条数）===== */
+  const PAGE_SIZE = 25
+
+  /** 当前页码 */
+  const currentPage = ref(1)
+  /** 总条数（后端返回） */
+  const totalCount = ref(0)
+  /** 总页数 */
+  const totalPages = ref(0)
+  /** 是否正在加载 */
+  const isLoading = ref(false)
+  /** 是否已加载全部 */
+  const allLoaded = computed(() => currentPage.value >= totalPages.value)
+  /** 当前日期标记（用于跨天检测） */
+  const currentDateStr = ref(getTodayStr())
+  /** 是否需要刷新（跨天标记） */
+  const needsRefresh = ref(false)
+  /** 跨天定时器 ID */
+  let midnightTimer: number | null = null
 
   /**
    * 未读数量
@@ -292,9 +316,8 @@ export const useAlertStore = defineStore('alert', () => {
    */
   function toggleSidebar() {
     sidebarVisible.value = !sidebarVisible.value
-    // 打开侧边栏时标记所有为已读
     if (sidebarVisible.value) {
-      markAllAsRead()
+      onSidebarOpen()
     }
   }
 
@@ -303,7 +326,18 @@ export const useAlertStore = defineStore('alert', () => {
    */
   function showSidebar() {
     sidebarVisible.value = true
+    onSidebarOpen()
+  }
+
+  /**
+   * 侧边栏打开时的统一处理
+   */
+  function onSidebarOpen() {
     markAllAsRead()
+    // 每次打开都重新加载第 1 页（保证数据最新）
+    loadAlerts(1, true)
+    // 启动跨天检测
+    scheduleMidnightRefresh()
   }
 
   /**
@@ -311,6 +345,119 @@ export const useAlertStore = defineStore('alert', () => {
    */
   function hideSidebar() {
     sidebarVisible.value = false
+  }
+
+  // ============ API 加载 ============
+
+  /**
+   * 获取今天的日期字符串（YYYY-MM-DD）
+   */
+  function getTodayStr(): string {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  /**
+   * 从后端 API 加载报警列表
+   *
+   * @param page - 页码
+   * @param reset - 是否重置列表（true = 重新加载第 1 页）
+   */
+  async function loadAlerts(page: number = 1, reset: boolean = false) {
+    if (isLoading.value) return
+    isLoading.value = true
+
+    try {
+      const today = getTodayStr()
+      const startDate = `${today}T00:00:00`
+
+      const response = await alertApi.getList({
+        page,
+        page_size: PAGE_SIZE,
+        start_date: startDate,
+      })
+
+      // 将后端 Alert 转为 AlertNotification
+      const items: AlertNotification[] = (response.items || []).map((a: any) => ({
+        id: a.id,
+        cameraId: a.camera_id,
+        cameraName: a.camera?.name || '未知摄像头',
+        zoneName: a.camera?.zone_name,
+        alertType: a.alert_type || 'stranger',
+        personId: a.person_id,
+        personName: a.person?.name,
+        groupName: a.person?.group_name,
+        thumbnail: resolveImageSrc(a.face_image_url) || resolveImageSrc(a.body_image_url) || resolveImageSrc(a.full_image_url) || '',
+        fullImage: resolveImageSrc(a.full_image_url) || '',
+        confidence: a.confidence || 0,
+        createdAt: a.created_at,
+        isRead: true,
+        trackId: a.track_id,
+        alertLevel: a.alert_level,
+      }))
+
+      if (reset) {
+        notifications.value = items
+      } else {
+        // 追加（去重）
+        const existingIds = new Set(notifications.value.map(n => n.id))
+        const newItems = items.filter(i => !existingIds.has(i.id))
+        notifications.value.push(...newItems)
+      }
+
+      currentPage.value = response.page || page
+      totalCount.value = response.total || 0
+      totalPages.value = response.total_pages || 0
+      currentDateStr.value = today
+      needsRefresh.value = false
+    } catch (error) {
+      console.error('[AlertStore] 加载报警列表失败:', error)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * 加载下一页（滚动到底部时调用）
+   */
+  async function loadMore() {
+    if (allLoaded.value || isLoading.value) return
+    await loadAlerts(currentPage.value + 1, false)
+  }
+
+  /**
+   * 设置跨天定时器
+   *
+   * 计算距离零点的精确毫秒数，设置一次性 setTimeout。
+   * 触发后清空列表，标记需要刷新。
+   */
+  function scheduleMidnightRefresh() {
+    if (midnightTimer) {
+      clearTimeout(midnightTimer)
+      midnightTimer = null
+    }
+
+    const now = new Date()
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    const msUntilMidnight = midnight.getTime() - now.getTime()
+
+    midnightTimer = window.setTimeout(() => {
+      // 跨天：重置数据
+      notifications.value = []
+      currentPage.value = 1
+      totalCount.value = 0
+      totalPages.value = 0
+      needsRefresh.value = true
+      currentDateStr.value = getTodayStr()
+
+      // 如果侧边栏正在打开，立即重新加载
+      if (sidebarVisible.value) {
+        loadAlerts(1, true)
+      }
+
+      // 设置下一个零点定时器
+      scheduleMidnightRefresh()
+    }, msUntilMidnight)
   }
 
   /**
@@ -360,5 +507,13 @@ export const useAlertStore = defineStore('alert', () => {
     toasts,
     addToast,
     removeToast,
+    // API 加载
+    isLoading,
+    totalCount,
+    allLoaded,
+    currentDateStr,
+    loadAlerts,
+    loadMore,
+    scheduleMidnightRefresh,
   }
 })

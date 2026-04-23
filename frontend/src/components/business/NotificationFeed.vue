@@ -1,19 +1,24 @@
 <script setup lang="ts">
 /**
- * 报警通知侧边栏组件
+ * 警告列表侧边栏组件
  * 
- * 展示实时报警通知列表，支持滑入动画、声音控制等功能。
+ * 展示当天的报警通知列表，支持：
+ * - 后端 API 分页加载
+ * - WebSocket 实时插入
+ * - 滚动到底部自动加载下一页
+ * - 零点自动刷新
  */
-import { computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { useAlertStore } from '@/stores/alert'
 import AlertCard from './AlertCard.vue'
 
 const alertStore = useAlertStore()
 
-/**
- * 是否有通知
- */
+/** 是否有通知 */
 const hasNotifications = computed(() => alertStore.notifications.length > 0)
+
+// @ts-ignore 模板中通过 ref= 绑定使用
+const scrollContainer = ref<HTMLElement | null>(null)
 
 /**
  * 关闭侧边栏
@@ -43,6 +48,28 @@ const toggleSound = () => {
   alertStore.toggleSound()
 }
 
+/**
+ * 滚动到底部时加载更多
+ */
+const handleScroll = (e: Event) => {
+  const target = e.target as HTMLElement
+  if (!target) return
+  
+  const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight
+  // 距离底部 100px 时触发加载
+  if (distanceToBottom < 100 && !alertStore.isLoading && !alertStore.allLoaded) {
+    alertStore.loadMore()
+  }
+}
+
+/**
+ * 格式化当天日期（用于底部显示）
+ */
+const todayFormatted = computed(() => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+})
+
 // 监听 ESC 键关闭侧边栏
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape' && alertStore.sidebarVisible) {
@@ -54,6 +81,10 @@ const handleKeydown = (e: KeyboardEvent) => {
 if (typeof window !== 'undefined') {
   window.addEventListener('keydown', handleKeydown)
 }
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
@@ -76,12 +107,12 @@ if (typeof window !== 'undefined') {
         <!-- 头部 -->
         <div class="sidebar-header">
           <div class="flex items-center gap-2">
-            <h3 class="text-lg font-semibold text-primary-900 dark:text-primary-100">实时报警</h3>
+            <h3 class="text-lg font-semibold text-primary-900 dark:text-primary-100">警告列表</h3>
             <span 
-              v-if="alertStore.unreadCount > 0"
+              v-if="alertStore.totalCount > 0"
               class="px-2 py-0.5 text-xs font-medium bg-danger-500 text-white rounded-full"
             >
-              {{ alertStore.unreadCount > 99 ? '99+' : alertStore.unreadCount }}
+              {{ alertStore.totalCount > 999 ? '999+' : alertStore.totalCount }}
             </span>
           </div>
           
@@ -139,41 +170,73 @@ if (typeof window !== 'undefined') {
         </div>
 
         <!-- 通知列表 -->
-        <div class="sidebar-content">
+        <div 
+          ref="scrollContainer"
+          class="sidebar-content"
+          @scroll="handleScroll"
+        >
+          <!-- 加载中（首次） -->
+          <div 
+            v-if="alertStore.isLoading && !hasNotifications"
+            class="flex flex-col items-center justify-center h-full"
+          >
+            <div class="w-8 h-8 border-2 border-primary-300 border-t-accent-500 rounded-full animate-spin mb-3" />
+            <p class="text-sm text-primary-400">加载中...</p>
+          </div>
+
           <!-- 空状态 -->
           <div 
-            v-if="!hasNotifications"
+            v-else-if="!hasNotifications && !alertStore.isLoading"
             class="flex flex-col items-center justify-center h-full text-center px-6"
           >
             <div class="w-16 h-16 bg-primary-100 dark:bg-primary-700 rounded-full flex items-center justify-center mb-4">
               <svg class="w-8 h-8 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <p class="text-primary-600 dark:text-primary-300 font-medium">暂无报警通知</p>
+            <p class="text-primary-600 dark:text-primary-300 font-medium">今日暂无报警</p>
             <p class="text-sm text-primary-400 mt-1">系统正常运行中</p>
           </div>
 
           <!-- 通知列表 -->
-          <TransitionGroup 
-            v-else
-            name="list" 
-            tag="div"
-            class="space-y-2 p-4"
-          >
-            <AlertCard
-              v-for="alert in alertStore.notifications"
-              :key="alert.id"
-              :alert="alert"
-              @dismiss="dismissNotification"
-            />
-          </TransitionGroup>
+          <template v-else>
+            <TransitionGroup 
+              name="list" 
+              tag="div"
+              class="space-y-2 p-4"
+            >
+              <AlertCard
+                v-for="alert in alertStore.notifications"
+                :key="alert.id"
+                :alert="alert"
+                @dismiss="dismissNotification"
+              />
+            </TransitionGroup>
+
+            <!-- 加载更多 -->
+            <div class="px-4 py-3 text-center">
+              <div v-if="alertStore.isLoading" class="flex items-center justify-center gap-2">
+                <div class="w-4 h-4 border-2 border-primary-300 border-t-accent-500 rounded-full animate-spin" />
+                <span class="text-xs text-primary-400">加载中...</span>
+              </div>
+              <p v-else-if="alertStore.allLoaded" class="text-xs text-primary-400">
+                已加载全部
+              </p>
+              <button
+                v-else
+                @click="alertStore.loadMore()"
+                class="text-xs text-accent-500 hover:text-accent-600 transition-colors"
+              >
+                加载更多
+              </button>
+            </div>
+          </template>
         </div>
 
-        <!-- 底部提示 -->
+        <!-- 底部统计 -->
         <div class="sidebar-footer">
           <p class="text-xs text-primary-400 dark:text-primary-500 text-center">
-            点击卡片查看详情 · 最多显示最近 100 条
+            {{ todayFormatted }} · 共 {{ alertStore.totalCount }} 条
           </p>
         </div>
       </aside>

@@ -10,6 +10,7 @@ import { useWebSocketStore } from '@/stores/websocket'
 import type { Camera, Zone, WsAlertData } from '@/types'
 import LiveStream from '@/components/business/LiveStream.vue'
 import { type AlertNotification } from '@/stores/alert'
+import { resolveThumbnail, resolveImageSrc } from '@/utils/image'
 
 // ============ WebSocket ============
 
@@ -287,12 +288,8 @@ const handleAlertMessage = (data: WsAlertData) => {
     personId: data.person_id,
     personName: data.person_name || (data.alert_type === 'stranger' ? '陌生人' : '未知'),
     groupName: data.group_name,
-    thumbnail: data.face_image 
-      ? (data.face_image.startsWith('data:') ? data.face_image : `data:image/jpeg;base64,${data.face_image}`)
-      : '',
-    fullImage: data.full_image
-      ? (data.full_image.startsWith('data:') ? data.full_image : `data:image/jpeg;base64,${data.full_image}`)
-      : undefined,
+    thumbnail: resolveThumbnail(data.face_image, data.body_image, data.full_image),
+    fullImage: resolveImageSrc(data.full_image) || undefined,
     confidence: data.confidence || data.similarity || 0,
     createdAt: data.timestamp || new Date().toISOString(),
     trackId: data.track_id,
