@@ -13,6 +13,7 @@ class AlertTypeEnum(str, Enum):
     STRANGER = "stranger"      # 陌生人
     KNOWN = "known"            # 已知人员
     BLACKLIST = "blacklist"    # 黑名单
+    UNIDENTIFIED = "unidentified"  # 未识别（检测到人体但未拍到正脸）
 
 
 class AlertStatusEnum(str, Enum):
@@ -151,6 +152,7 @@ class AlertTrendItem(BaseModel):
     stranger_count: int = 0
     known_count: int = 0
     blacklist_count: int = 0
+    unidentified_count: int = 0
 
 
 class AlertTrendResponse(BaseModel):

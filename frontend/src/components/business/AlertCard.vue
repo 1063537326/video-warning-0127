@@ -43,6 +43,12 @@ const typeConfig = computed(() => {
       textClass: 'text-primary-800 dark:text-primary-200',
       dotClass: 'bg-primary-900 dark:bg-primary-300',
     },
+    unidentified: {
+      label: '未识别',
+      bgClass: 'bg-amber-100 dark:bg-amber-900/40',
+      textClass: 'text-amber-700 dark:text-amber-400',
+      dotClass: 'bg-amber-500',
+    },
   }
   return configs[props.alert.alertType] || configs.stranger
 })

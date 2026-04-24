@@ -293,6 +293,7 @@ const getAlertTypeLabel = (type: string) => {
     case 'stranger': return '陌生人'
     case 'known': return '已知人员'
     case 'blacklist': return '黑名单'
+    case 'unidentified': return '未识别'
     default: return type
   }
 }
@@ -305,6 +306,7 @@ const getAlertTypeBadge = (type: string) => {
     case 'stranger': return 'badge-warning'
     case 'known': return 'badge-accent'
     case 'blacklist': return 'badge-danger'
+    case 'unidentified': return 'badge-primary'
     default: return 'badge-primary'
   }
 }
@@ -446,6 +448,7 @@ onMounted(() => {
               <option value="stranger">陌生人</option>
               <option value="known">已知人员</option>
               <option value="blacklist">黑名单</option>
+              <option value="unidentified">未识别</option>
             </select>
           </div>
           <!-- 状态 -->

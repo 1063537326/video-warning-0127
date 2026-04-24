@@ -14,6 +14,7 @@ class AlertType(str, enum.Enum):
     STRANGER = "stranger"      # 陌生人
     KNOWN = "known"            # 已知人员
     BLACKLIST = "blacklist"    # 黑名单
+    UNIDENTIFIED = "unidentified"  # 未识别（检测到人体但未拍到正脸）
 
 
 class AlertLevel(str, enum.Enum):

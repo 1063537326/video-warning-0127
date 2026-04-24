@@ -163,7 +163,7 @@ export interface GroupSimple {
 // ============ 报警相关 ============
 
 /** 报警类型 */
-export type AlertType = 'stranger' | 'known' | 'blacklist'
+export type AlertType = 'stranger' | 'known' | 'blacklist' | 'unidentified'
 
 /** 报警状态 */
 export type AlertStatus = 'pending' | 'processed' | 'ignored'

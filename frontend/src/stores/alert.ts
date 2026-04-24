@@ -20,7 +20,7 @@ export interface AlertNotification {
   /** 区域名称 */
   zoneName?: string
   /** 报警类型 */
-  alertType: 'stranger' | 'known' | 'blacklist'
+  alertType: 'stranger' | 'known' | 'blacklist' | 'unidentified'
   /** 人员 ID */
   personId?: number
   /** 人员名称 */

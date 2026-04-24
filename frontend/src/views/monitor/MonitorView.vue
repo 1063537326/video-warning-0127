@@ -257,6 +257,7 @@ const getAlertTypeColor = (type: string) => {
     case 'stranger': return 'bg-danger-500'
     case 'known': return 'bg-accent-500'
     case 'blacklist': return 'bg-primary-900'
+    case 'unidentified': return 'bg-amber-500'
     default: return 'bg-gray-500'
   }
 }
@@ -269,6 +270,7 @@ const getAlertTypeText = (type: string) => {
     case 'stranger': return '陌生人'
     case 'known': return '已知人员'
     case 'blacklist': return '黑名单'
+    case 'unidentified': return '未识别'
     default: return '未知'
   }
 }
@@ -284,9 +286,9 @@ const handleAlertMessage = (data: WsAlertData) => {
     cameraId: data.camera_id,
     cameraName: data.camera_name || '未知摄像头',
     zoneName: data.zone_name,
-    alertType: data.alert_type as 'stranger' | 'known' | 'blacklist',
+    alertType: data.alert_type as 'stranger' | 'known' | 'blacklist' | 'unidentified',
     personId: data.person_id,
-    personName: data.person_name || (data.alert_type === 'stranger' ? '陌生人' : '未知'),
+    personName: data.person_name || (data.alert_type === 'stranger' ? '陌生人' : data.alert_type === 'unidentified' ? '未识别人员' : '未知'),
     groupName: data.group_name,
     thumbnail: resolveThumbnail(data.face_image, data.body_image, data.full_image),
     fullImage: resolveImageSrc(data.full_image) || undefined,

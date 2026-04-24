@@ -444,7 +444,7 @@ async def get_alert_trend(
             date_key = alert.created_at.strftime("%Y-%m-%d")
         
         if date_key not in date_counts:
-            date_counts[date_key] = {"count": 0, "stranger": 0, "known": 0, "blacklist": 0}
+            date_counts[date_key] = {"count": 0, "stranger": 0, "known": 0, "blacklist": 0, "unidentified": 0}
         
         date_counts[date_key]["count"] += 1
         alert_type = alert.alert_type.value if hasattr(alert.alert_type, 'value') else alert.alert_type
@@ -459,6 +459,7 @@ async def get_alert_trend(
             stranger_count=data["stranger"],
             known_count=data["known"],
             blacklist_count=data["blacklist"],
+            unidentified_count=data["unidentified"],
         )
         for date, data in sorted(date_counts.items())
     ]

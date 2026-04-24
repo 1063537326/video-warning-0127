@@ -316,13 +316,15 @@ class EngineManager:
                 event.type = "KNOWN_PERSON_DETECTED" # 修改事件类型用于通知
                 
             elif event.type == "BODY_DETECTED":
-                alert_type = AlertType.STRANGER
+                alert_type = AlertType.UNIDENTIFIED  # 未拍到正脸，无法识别身份
                 alert_level = AlertLevel.WARNING # 弱提醒
                 
             # 4. 生成报警数据
+            task = self._cameras.get(camera_id)
             alert_data = {
                 "track_id": str(event.track_id),
                 "camera_id": camera_id,
+                "camera_name": task.name if task else "",
                 "alert_type": alert_type,
                 "alert_level": alert_level,
                 "person_name": person_name,

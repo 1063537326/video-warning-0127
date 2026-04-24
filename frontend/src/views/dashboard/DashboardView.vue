@@ -130,6 +130,7 @@ const trendChartOption = computed(() => {
   const strangerData = trendData.value.map(item => item.stranger_count || 0)
   const knownData = trendData.value.map(item => item.known_count || 0)
   const blacklistData = trendData.value.map(item => item.blacklist_count || 0)
+  const unidentifiedData = trendData.value.map(item => item.unidentified_count || 0)
 
   return {
     backgroundColor: chartTheme.value.backgroundColor,
@@ -145,7 +146,7 @@ const trendChartOption = computed(() => {
       },
     },
     legend: {
-      data: ['陌生人', '已知人员', '黑名单'],
+      data: ['陌生人', '已知人员', '黑名单', '未识别'],
       top: 0,
       textStyle: {
         color: chartTheme.value.textColor,
@@ -236,6 +237,22 @@ const trendChartOption = computed(() => {
         },
         data: blacklistData,
       },
+      {
+        name: '未识别',
+        type: 'bar',
+        stack: 'total',
+        barMaxWidth: 30,
+        itemStyle: {
+          color: '#f59e0b',
+          borderRadius: [4, 4, 0, 0],
+        },
+        emphasis: {
+          itemStyle: {
+            color: '#d97706',
+          },
+        },
+        data: unidentifiedData,
+      },
     ],
   }
 })
@@ -248,6 +265,7 @@ const pieChartOption = computed(() => {
     { value: alertStats.value.by_type.stranger || 0, name: '陌生人', itemStyle: { color: '#ef4444' } },
     { value: alertStats.value.by_type.known || 0, name: '已知人员', itemStyle: { color: '#319795' } },
     { value: alertStats.value.by_type.blacklist || 0, name: '黑名单', itemStyle: { color: '#102a43' } },
+    { value: alertStats.value.by_type.unidentified || 0, name: '未识别', itemStyle: { color: '#f59e0b' } },
   ] : []
 
   return {
