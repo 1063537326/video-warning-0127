@@ -150,6 +150,7 @@ export const useAlertStore = defineStore('alert', () => {
     stranger: '陌生人',
     known: '已知人员',
     blacklist: '黑名单',
+    unidentified: '未识别',
   }
 
   /**
@@ -159,6 +160,7 @@ export const useAlertStore = defineStore('alert', () => {
     stranger: 'danger',
     known: 'accent',
     blacklist: 'primary',
+    unidentified: 'warning',
   }
 
   /**
