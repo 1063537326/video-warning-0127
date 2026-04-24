@@ -48,10 +48,10 @@ async def create_default_configs():
     """Create default system configurations"""
     async with AsyncSessionLocal() as session:
         default_configs = [
-            ("face_similarity_threshold", "0.6", "number", "Face similarity threshold (0.0-1.0)"),
-            ("alert_cooldown_seconds", "60", "number", "Alert cooldown time in seconds"),
-            ("data_retention_days", "30", "number", "Data retention days"),
-            ("capture_quality", "85", "number", "JPEG capture quality (0-100)"),
+            ("face_similarity_threshold", "0.6", "number", "人脸相似度阈值 (0.0-1.0)"),
+            ("alert_cooldown_seconds", "60", "number", "报警冷却时间 (秒)"),
+            ("data_retention_days", "30", "number", "数据保留天数"),
+            ("capture_quality", "85", "number", "截图质量 (1-100)"),
         ]
         
         for key, value, value_type, description in default_configs:

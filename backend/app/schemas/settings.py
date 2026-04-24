@@ -2,10 +2,23 @@
 系统配置 Schemas
 - 系统参数、系统状态、数据清理相关的数据模型
 """
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Annotated, Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
+
+from pydantic import BaseModel, BeforeValidator, Field
+
+
+def _coerce_to_str(v: Any) -> str:
+    """
+    将非字符串值强制转为字符串
+
+    前端 Vue 的 v-model 对 number 类型 input 可能传回 JS number，
+    Pydantic v2 严格模式会拒绝，此校验器在验证前自动转换。
+    """
+    if not isinstance(v, str):
+        return str(v)
+    return v
 
 
 class ConfigValueType(str, Enum):
@@ -45,7 +58,7 @@ class SystemConfigResponse(BaseModel):
 class ConfigUpdateItem(BaseModel):
     """配置更新项"""
     config_key: str = Field(..., description="配置键名")
-    config_value: str = Field(..., description="配置值")
+    config_value: Annotated[str, BeforeValidator(_coerce_to_str)] = Field(..., description="配置值")
 
 
 class ConfigUpdateRequest(BaseModel):

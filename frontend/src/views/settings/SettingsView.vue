@@ -36,6 +36,27 @@ const groupLabels: Record<string, string> = {
 }
 
 /**
+ * 配置项中文标签映射
+ *
+ * 优先使用此映射显示配置项名称，避免数据库中遗留的英文描述。
+ */
+const configLabels: Record<string, string> = {
+  face_similarity_threshold: '人脸相似度阈值 (0.0-1.0)',
+  face_detection_min_size: '人脸检测最小尺寸 (像素)',
+  face_detection_confidence: '人脸检测置信度阈值',
+  concurrent_limit: '人脸识别并发限制',
+  alert_cooldown_seconds: '报警冷却时间 (秒)',
+  alert_sound_enabled: '是否启用报警声音',
+  alert_push_enabled: '是否启用报警推送',
+  data_retention_days: '数据保留天数',
+  capture_quality: '截图质量 (1-100)',
+  max_face_images_per_person: '每人最大人脸图片数',
+  enable_operation_log: '是否记录操作日志',
+  auto_cleanup_enabled: '是否启用自动清理',
+  auto_cleanup_hour: '自动清理执行时间 (0-23时)',
+}
+
+/**
  * 检测是否有未保存的修改
  */
 const hasChanges = computed(() => {
@@ -88,10 +109,10 @@ const loadStatus = async () => {
 const handleSave = async () => {
   // 只收集有变更的项
   const changedItems = Object.entries(editedValues.value)
-    .filter(([key, value]) => value !== originalValues.value[key])
+    .filter(([key, value]) => String(value) !== String(originalValues.value[key]))
     .map(([key, value]) => ({
       config_key: key,
-      config_value: value
+      config_value: String(value)
     }))
   
   if (changedItems.length === 0) {
@@ -275,7 +296,7 @@ onMounted(() => {
                 <div class="flex-1">
                   <div class="flex items-center gap-2 mb-1">
                     <label class="text-sm font-medium text-primary-700">
-                      {{ item.description || item.config_key }}
+                      {{ configLabels[item.config_key] || item.description || item.config_key }}
                     </label>
                     <!-- 问号提示图标 -->
                     <div v-if="getConfigTooltip(item.config_key)" class="relative group/tooltip">
