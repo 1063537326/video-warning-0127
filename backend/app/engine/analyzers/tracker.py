@@ -207,9 +207,9 @@ class YoloTracker:
         for track_id in current_ids:
             if track_id in self.tracked_persons:
                 person = self.tracked_persons[track_id]
-                # 如果没有好的脸，且停留超过 1 秒 (User requested immediate), 且未报告过
+                # 如果没有足够质量的脸（阈值与人脸保存一致），且停留超过 1 秒, 且未报告过
                 duration = (timestamp - person.start_time).total_seconds()
-                if person.best_face_score < 300 and duration > 1.0 and not person.is_stranger_body_reported:
+                if person.best_face_score < 600 and duration > 1.0 and not person.is_stranger_body_reported:
                     events.append(self._create_body_event(person, frame))
                     person.is_stranger_body_reported = True
         

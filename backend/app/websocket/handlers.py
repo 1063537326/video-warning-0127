@@ -324,10 +324,7 @@ async def engine_alert_callback(alert_data: dict) -> None:
             
     except Exception as e:
         logger.error(f"报警入库失败: {e}", exc_info=True)
-        try:
-            await db.rollback()
-        except Exception:
-            pass  # rollback 本身失败时忽略，session 会在 async with 退出时关闭
+        # async with 会在异常时自动回滚，无需手动 rollback
 
     # 2. 推送 WebSocket
     if should_push:

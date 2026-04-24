@@ -15,7 +15,9 @@ from concurrent.futures import ThreadPoolExecutor
 from ultralytics import YOLO
 
 from app.core.config import settings
+from app.core.database import AsyncSessionLocal
 from app.models.alert import AlertType, AlertLevel
+from app.models.person import KnownPerson
 from .capture import CameraCapture, CaptureConfig, CaptureStatus
 from .stream import stream_broadcaster
 from .recognition.client import compreface_client
@@ -286,6 +288,7 @@ class EngineManager:
             
             # 2. 识别逻辑
             person_name = None
+            person_id = None
             is_known = False
             
             if event.type == "FACE_DETECTED" and event.face_image is not None:
@@ -303,6 +306,18 @@ class EngineManager:
                     if sim >= settings.COMPREFACE_THRESHOLD:
                          is_known = True
                          person_name = name
+                         # 根据名字查询 person_id
+                         try:
+                             async with AsyncSessionLocal() as db:
+                                 from sqlalchemy import select
+                                 result = await db.execute(
+                                     select(KnownPerson.id).where(KnownPerson.name == name).limit(1)
+                                 )
+                                 row = result.scalar()
+                                 if row:
+                                     person_id = row
+                         except Exception as e:
+                             logger.warning(f"查询 person_id 失败 (name={name}): {e}")
                     else:
                          is_known = False
                          
@@ -328,6 +343,7 @@ class EngineManager:
                 "alert_type": alert_type,
                 "alert_level": alert_level,
                 "person_name": person_name,
+                "person_id": person_id,
                 "face_image": img_paths.get('face'),
                 "body_image": img_paths.get('body'),
                 "full_image": img_paths.get('full'),
