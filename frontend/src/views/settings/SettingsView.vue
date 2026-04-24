@@ -108,7 +108,7 @@ const handleSave = async () => {
     if (res.failed_count > 0) {
       msg += `，失败 ${res.failed_count} 项`
     }
-    if (res.validation_errors?.length > 0) {
+    if (res.validation_errors && res.validation_errors.length > 0) {
       msg += `\n\n校验错误:\n${res.validation_errors.join('\n')}`
     }
     if (res.engine_reload_failed) {
