@@ -4,7 +4,7 @@
  * 
  * 管理系统配置、数据清理、查看系统状态。
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { settingsApi } from '@/api'
 import type { ConfigGroup, SystemStatus } from '@/types'
 
@@ -15,6 +15,7 @@ const saving = ref(false)
 const configGroups = ref<ConfigGroup[]>([])
 const systemStatus = ref<SystemStatus | null>(null)
 const editedValues = ref<Record<string, string>>({})
+const originalValues = ref<Record<string, string>>({})
 
 // 清理相关
 const showCleanupModal = ref(false)
@@ -34,6 +35,15 @@ const groupLabels: Record<string, string> = {
   system: '系统配置'
 }
 
+/**
+ * 检测是否有未保存的修改
+ */
+const hasChanges = computed(() => {
+  return Object.keys(editedValues.value).some(
+    key => editedValues.value[key] !== originalValues.value[key]
+  )
+})
+
 // ============ 方法 ============
 
 /**
@@ -44,12 +54,15 @@ const loadConfig = async () => {
   try {
     const res = await settingsApi.getConfig()
     configGroups.value = res.groups
-    // 初始化编辑值
+    // 初始化编辑值和原始值快照
+    const values: Record<string, string> = {}
     res.groups.forEach(group => {
       group.items.forEach(item => {
-        editedValues.value[item.config_key] = item.config_value || ''
+        values[item.config_key] = item.config_value || ''
       })
     })
+    editedValues.value = { ...values }
+    originalValues.value = { ...values }
   } catch (error) {
     console.error('加载配置失败:', error)
   } finally {
@@ -70,17 +83,39 @@ const loadStatus = async () => {
 }
 
 /**
- * 保存配置
+ * 保存配置（仅发送修改过的项）
  */
 const handleSave = async () => {
-  saving.value = true
-  try {
-    const items = Object.entries(editedValues.value).map(([key, value]) => ({
+  // 只收集有变更的项
+  const changedItems = Object.entries(editedValues.value)
+    .filter(([key, value]) => value !== originalValues.value[key])
+    .map(([key, value]) => ({
       config_key: key,
       config_value: value
     }))
-    const res = await settingsApi.updateConfig(items)
-    alert(`保存成功：成功 ${res.success_count} 项，失败 ${res.failed_count} 项`)
+  
+  if (changedItems.length === 0) {
+    alert('没有修改任何配置')
+    return
+  }
+  
+  saving.value = true
+  try {
+    const res = await settingsApi.updateConfig(changedItems)
+    
+    // 构建保存结果消息
+    let msg = `保存成功：${res.success_count} 项`
+    if (res.failed_count > 0) {
+      msg += `，失败 ${res.failed_count} 项`
+    }
+    if (res.validation_errors?.length > 0) {
+      msg += `\n\n校验错误:\n${res.validation_errors.join('\n')}`
+    }
+    if (res.engine_reload_failed) {
+      msg += '\n\n⚠️ 引擎配置热更新失败，部分配置需要重启后生效'
+    }
+    
+    alert(msg)
     loadConfig()
   } catch (error: any) {
     alert(error.response?.data?.detail || '保存失败')
@@ -194,7 +229,7 @@ onMounted(() => {
         <p class="text-primary-500 mt-1">配置系统参数和维护操作</p>
       </div>
       <div class="flex items-center gap-4">
-        <button @click="handleSave" :disabled="saving" class="btn-primary">
+        <button @click="handleSave" :disabled="saving || !hasChanges" class="btn-primary">
           <svg v-if="saving" class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />

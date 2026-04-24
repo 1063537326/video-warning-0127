@@ -353,8 +353,8 @@ export const settingsApi = {
   getConfig: (): Promise<{ groups: ConfigGroup[] }> =>
     api.get('/settings'),
 
-  /** 更新配置 */
-  updateConfig: (items: Array<{ config_key: string; config_value: string }>): Promise<{ success_count: number; failed_count: number }> =>
+  /** 更新配置（仅发送修改过的项） */
+  updateConfig: (items: Array<{ config_key: string; config_value: string }>): Promise<{ success_count: number; failed_count: number; failed_keys?: string[]; validation_errors?: string[]; engine_reload_failed?: boolean }> =>
     api.put('/settings', { items }),
 
   /** 获取系统状态 */

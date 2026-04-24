@@ -58,6 +58,8 @@ class ConfigUpdateResult(BaseModel):
     success_count: int
     failed_count: int
     failed_keys: List[str] = []
+    validation_errors: List[str] = []
+    engine_reload_failed: bool = False
 
 
 class CleanupTypeEnum(str, Enum):

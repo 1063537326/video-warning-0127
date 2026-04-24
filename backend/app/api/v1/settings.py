@@ -10,6 +10,7 @@
 - GET /settings/cleanup-logs - 获取清理日志
 - GET /settings/status - 获取系统状态
 """
+import logging
 import os
 import shutil
 import platform
@@ -45,6 +46,7 @@ from app.schemas.settings import (
 )
 
 router = APIRouter(prefix="/settings", tags=["系统配置"])
+logger = logging.getLogger(__name__)
 
 # 应用启动时间
 APP_START_TIME = time.time()
@@ -192,7 +194,7 @@ async def update_system_config(
     """
     更新系统配置
 
-    批量更新配置项。
+    批量更新配置项，包含值校验和引擎热更新。
 
     Args:
         request: 配置更新请求
@@ -202,12 +204,27 @@ async def update_system_config(
     """
     failed_keys = []
     success_count = 0
+    validation_errors = []
+    engine_reload_failed = False
+    
+    # 配置值校验规则
+    validation_rules = {
+        "face_similarity_threshold": {"type": "float", "min": 0.0, "max": 1.0, "label": "人脸相似度阈值"},
+        "face_detection_min_size": {"type": "int", "min": 10, "max": 500, "label": "最小人脸尺寸"},
+        "face_detection_confidence": {"type": "float", "min": 0.0, "max": 1.0, "label": "人脸检测置信度"},
+        "concurrent_limit": {"type": "int", "min": 1, "max": 50, "label": "并发限制"},
+        "alert_cooldown_seconds": {"type": "int", "min": 0, "max": 3600, "label": "报警冷却时间"},
+        "data_retention_days": {"type": "int", "min": 1, "max": 365, "label": "数据保留天数"},
+        "capture_quality": {"type": "int", "min": 1, "max": 100, "label": "截图质量"},
+        "max_face_images_per_person": {"type": "int", "min": 1, "max": 50, "label": "每人最大人脸数"},
+        "auto_cleanup_hour": {"type": "int", "min": 0, "max": 23, "label": "自动清理时间"},
+    }
     
     # 标记是否需要重载引擎配置
     need_reload = False
-    engine_related_groups = ["face_recognition", "alert", "storage"] # 简化判断，只要有改动就重载
     
     for item in request.items:
+        # 查找配置项
         result = await db.execute(
             select(SystemConfig).where(SystemConfig.config_key == item.config_key)
         )
@@ -216,6 +233,30 @@ async def update_system_config(
         if not config:
             failed_keys.append(item.config_key)
             continue
+        
+        # 值校验
+        rule = validation_rules.get(item.config_key)
+        if rule:
+            try:
+                if rule["type"] == "float":
+                    val = float(item.config_value)
+                elif rule["type"] == "int":
+                    val = int(float(item.config_value))
+                else:
+                    val = item.config_value
+                
+                if "min" in rule and val < rule["min"]:
+                    validation_errors.append(f"{rule['label']}不能小于 {rule['min']}")
+                    failed_keys.append(item.config_key)
+                    continue
+                if "max" in rule and val > rule["max"]:
+                    validation_errors.append(f"{rule['label']}不能大于 {rule['max']}")
+                    failed_keys.append(item.config_key)
+                    continue
+            except (ValueError, TypeError):
+                validation_errors.append(f"{rule['label']}格式无效: {item.config_value}")
+                failed_keys.append(item.config_key)
+                continue
         
         # 更新配置
         config.config_value = item.config_value
@@ -231,16 +272,20 @@ async def update_system_config(
             from main import get_engine
             engine = get_engine()
             if engine:
-                # 逐个通知引擎更新配置
                 for item in request.items:
-                    engine.update_config(item.config_key, item.config_value)
+                    if item.config_key not in failed_keys:
+                        engine.update_config(item.config_key, item.config_value)
+                logger.info(f"引擎配置热更新成功，共更新 {success_count} 项")
         except Exception as e:
-             print(f"Failed to reload engine config: {e}")
+            engine_reload_failed = True
+            logger.error(f"引擎配置热更新失败: {e}", exc_info=True)
 
     return ConfigUpdateResult(
         success_count=success_count,
         failed_count=len(failed_keys),
         failed_keys=failed_keys,
+        validation_errors=validation_errors,
+        engine_reload_failed=engine_reload_failed,
     )
 
 
@@ -349,28 +394,39 @@ async def perform_cleanup(
                         bytes_freed += os.path.getsize(path)
                         files_deleted += 1
         
-        # 清理截图文件（不在数据库中的孤立文件）
+        # 清理截图文件（按日期子目录组织: captures/{YYYYMMDD}/{camera_id}/{type}/xxx.jpg）
         if cleanup_type in ["capture", "all"]:
             captures_dir = settings.CAPTURES_DIR
             if os.path.exists(captures_dir):
-                for filename in os.listdir(captures_dir):
-                    file_path = os.path.join(captures_dir, filename)
-                    if os.path.isfile(file_path):
-                        file_mtime = datetime.fromtimestamp(
-                            os.path.getmtime(file_path), tz=timezone.utc
-                        )
-                        if file_mtime < cutoff_date:
+                cutoff_date_str = cutoff_date.strftime("%Y%m%d")
+                for date_dir_name in os.listdir(captures_dir):
+                    date_dir_path = os.path.join(captures_dir, date_dir_name)
+                    if not os.path.isdir(date_dir_path):
+                        continue
+                    
+                    # 按目录名（YYYYMMDD）判断是否过期
+                    try:
+                        if date_dir_name < cutoff_date_str:
+                            # 统计该目录下的所有文件
+                            for root, dirs, files in os.walk(date_dir_path):
+                                for f in files:
+                                    fp = os.path.join(root, f)
+                                    try:
+                                        bytes_freed += os.path.getsize(fp)
+                                        files_deleted += 1
+                                    except OSError:
+                                        pass
+                            
+                            # 实际删除整个日期目录
                             if not dry_run:
                                 try:
-                                    file_size = os.path.getsize(file_path)
-                                    os.remove(file_path)
-                                    files_deleted += 1
-                                    bytes_freed += file_size
-                                except Exception:
-                                    pass
-                            else:
-                                bytes_freed += os.path.getsize(file_path)
-                                files_deleted += 1
+                                    shutil.rmtree(date_dir_path)
+                                    logger.info(f"已清理截图目录: {date_dir_name}")
+                                except Exception as e:
+                                    logger.warning(f"清理截图目录失败 {date_dir_name}: {e}")
+                    except (ValueError, TypeError):
+                        # 非日期格式的目录名，跳过
+                        continue
         
         if not dry_run:
             await db.commit()
