@@ -9,7 +9,7 @@ WebSocket 消息处理器
 """
 import logging
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .manager import manager, MessageType
 from app.core.database import AsyncSessionLocal
@@ -223,11 +223,14 @@ async def engine_alert_callback(alert_data: dict) -> None:
             alert_level = alert_data.get("alert_level")
             
             # 查找该 track_id 是否已有活跃/未处理的记录
+            # 限制时间窗口（10分钟），避免跨天 track_id 复用导致误合并
             existing_alert = None
             if track_id:
+                time_threshold = datetime.now() - timedelta(minutes=10)
                 stmt = select(AlertLog).where(
                     AlertLog.track_id == track_id,
-                    AlertLog.camera_id == int(camera_id)
+                    AlertLog.camera_id == int(camera_id),
+                    AlertLog.created_at >= time_threshold
                 ).order_by(AlertLog.created_at.desc()).limit(1)
                 result = await db.execute(stmt)
                 existing_alert = result.scalars().first()
@@ -236,7 +239,7 @@ async def engine_alert_callback(alert_data: dict) -> None:
                 # === 合并逻辑 ===
                 # 如果是已知人员降级
                 if alert_data.get("alert_type") == AlertType.KNOWN.value:
-                     # 之前是陌生人，现在认出来了 -> 降级
+                     # 之前是陌生人/未识别，现在认出来了 -> 降级
                      existing_alert.alert_type = AlertType.KNOWN
                      existing_alert.alert_level = AlertLevel.INFO
                      existing_alert.person_id = alert_data.get("person_id") 
@@ -253,7 +256,17 @@ async def engine_alert_callback(alert_data: dict) -> None:
                      alert_data['is_update'] = True
                      alert_data['original_alert_id'] = existing_alert.id
                      
-                # 如果是陌生人升级 (Body -> Face)
+                # 如果是 UNIDENTIFIED 升级为有脸的类型 (Body -> Face)
+                elif existing_alert.alert_type == AlertType.UNIDENTIFIED and alert_data.get("alert_type") in (AlertType.STRANGER.value, AlertType.STRANGER):
+                     existing_alert.alert_level = AlertLevel.CRITICAL
+                     existing_alert.alert_type = AlertType.STRANGER
+                     existing_alert.face_image_path = alert_data.get('face_image')
+                     existing_alert.status = AlertStatus.PENDING
+                     
+                     alert_data['is_update'] = True
+                     alert_data['original_alert_id'] = existing_alert.id
+
+                # 如果是陌生人升级 (INFO -> CRITICAL)
                 elif existing_alert.alert_level == AlertLevel.INFO and alert_level == AlertLevel.CRITICAL:
                      existing_alert.alert_level = AlertLevel.CRITICAL
                      existing_alert.alert_type = AlertType.STRANGER
