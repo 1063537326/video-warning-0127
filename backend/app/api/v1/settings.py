@@ -201,6 +201,7 @@ async def update_system_config(
         ConfigUpdateResult: 更新结果
     """
     failed_keys = []
+    success_count = 0
     
     # 标记是否需要重载引擎配置
     need_reload = False
